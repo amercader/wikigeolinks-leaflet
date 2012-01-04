@@ -1,5 +1,3 @@
-
-
 var App = (function() {
     //
     var formatLink = function(string){
@@ -27,6 +25,7 @@ var App = (function() {
         linkedLines: null,
 
         currentArticle: null,
+
         search: function(text){
             if (text.length > 3){
                 var url = 'http://127.0.0.1:5000/articles';
@@ -43,6 +42,7 @@ var App = (function() {
                 });
             }
         },
+
         getArticle: function(id){
             var url = 'http://127.0.0.1:5000/articles/' + id + '.json';
             url = "proxy.php?url="+escape(url);
@@ -58,6 +58,12 @@ var App = (function() {
 
         },
 
+        clear: function(){
+            App.articles.clearLayers();
+            App.lines.clearLayers();
+            App.linkedArticles.clearLayers();
+            App.linkedLines.clearLayers();
+        },
 
         getLinkedArticles: function(id){
             var url = 'http://127.0.0.1:5000/articles/' + id + '/linked';
@@ -99,6 +105,9 @@ var App = (function() {
             $("#search").keyup(function(e){
                 App.search(e.target.value);
             });
+
+            $("#clear").click(App.clear);
+
             // Set map div size
             $("#map").width($(window).width());
             $("#map").height($(window).height());
@@ -159,7 +168,7 @@ var App = (function() {
                }
             });
 
-            
+
             this.map.addLayer(this.articles);
 
             var linkedArticlesMarkerOptions = {
