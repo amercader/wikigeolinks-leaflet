@@ -1,3 +1,32 @@
+L.Handler.CtrlClickQuery = L.Handler.extend({
+	initialize: function(map) {
+		this._map = map;
+		this._container = map._container;
+	},
+
+    enable: function() {
+		if (this._enabled) { return; }
+		L.DomEvent.addListener(this._container, 'mouseup', this._onMouseUp, this);
+		this._enabled = true;
+	},
+
+	disable: function() {
+		if (!this._enabled) { return; }
+		L.DomEvent.removeListener(this._container, 'mouseup', this._onMouseUp, this);
+		this._enabled = false;
+	},
+
+	_onMouseUp: function(e) {
+
+		if (!e.ctrlKey) { return false; }
+        var latlng = this._map.mouseEventToLatLng(e);
+
+        App.searchByLatLng(latlng.lat,latlng.lng);
+
+	}
+});
+
+
 var App = (function() {
     //
     var formatLink = function(string){
@@ -39,7 +68,7 @@ var App = (function() {
 
                 $.get(url,function(data){
 
-                    var resultsDiv = $("#results");
+                    var resultsDiv = $("#search-results");
                     if (data && data.features.length){
                         resultsDiv.empty().show();
                         var div, title, result;
@@ -65,6 +94,60 @@ var App = (function() {
                     }
                 });
             }
+        },
+
+        searchByLatLng: function(lat,lng){
+
+            var zoom = App.map.getZoom() || 1;
+            var tolerance = 1 / zoom;
+
+            var url = 'http://127.0.0.1:5000/articles';
+            url += "?lat=" + lat;
+            url += "&lon=" + lng;
+            url += "&tolerance=" + tolerance;
+            url += "&attrs=id,title,links_count";
+            url += "&order_by=links_count";
+            url += "&dir=desc";
+            url += "&limit=30";
+            url = "proxy.php?url="+escape(url);
+
+            $("#map").css("cursor", "wait");
+
+            $.get(url,function(data){
+
+                var resultsDiv = $("<div></div>");
+                resultsDiv.addClass("results");
+                if (data && data.features.length){
+                    var div, title, results;
+                    for (var i = 0; i < data.features.length; i++){
+                        title = data.features[i].properties.title;
+
+                        result = title + " (" + data.features[i].properties.links_count + ")";
+
+                        div = $("<div></div>").append(result);
+                        div.click({"feature": data.features[i]},function(e){
+                            App.map.closePopup();
+                            App.clear();
+                            App.addArticle(e.data.feature);
+                            App.getLinkedArticles(e.data.feature.id);
+                        });
+                        resultsDiv.append(div);
+                    }
+
+                } else {
+                    resultsDiv.append("No articles found near this point");
+                }
+
+                var popup = new L.Popup();
+                popup.setLatLng(new L.LatLng(lat,lng));
+                // We need the actual DOM object
+                popup.setContent(resultsDiv.get(0));
+
+                App.map.openPopup(popup);
+                $("#map").css("cursor", "default");
+
+            });
+
         },
 
         getArticle: function(id){
@@ -237,8 +320,6 @@ var App = (function() {
                             App.getArticle(id);
                         });
 
-
-
                    })(e.properties);
 
                }
@@ -247,14 +328,11 @@ var App = (function() {
 
             this.map.addLayer(this.linkedArticles);
 
-            this.map.on("click", function(e){
-                    var s;
-
-            });
+            var pointQuery = new L.Handler.CtrlClickQuery(this.map);
+            pointQuery.enable()
 
             this.map.setView(new L.LatLng(0, 0), 1);
 
-            //this.addArticle('125654');
             this.getArticle('31862');
         }
     }
