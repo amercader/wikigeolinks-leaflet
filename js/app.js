@@ -38,7 +38,31 @@ var App = (function() {
                 url = "proxy.php?url="+escape(url);
 
                 $.get(url,function(data){
-                    var x;
+
+                    var resultsDiv = $("#results");
+                    if (data && data.features.length){
+                        resultsDiv.empty().show();
+                        var div, title, result;
+                        var re = new RegExp(text,"gi");
+                        for (var i = 0; i < data.features.length; i++){
+                            title = data.features[i].properties.title;
+                            result = title.replace(re, function(m){
+                                        return "<strong>" + m + "</strong>"
+                                     }) + " (" + data.features[i].properties.links_count + ")";
+
+                            div = $("<div></div>").append(result);
+                            div.click({"feature": data.features[i]},function(e){
+                                $("#search").val($(this).text());
+                                resultsDiv.empty().hide();
+                                App.clear();
+                                App.addArticle(e.data.feature);
+                                App.getLinkedArticles(e.data.feature.id);
+                            });
+                            resultsDiv.append(div);
+                        }
+                    } else {
+                        resultsDiv.append("No results found");
+                    }
                 });
             }
         },
@@ -63,6 +87,11 @@ var App = (function() {
             App.lines.clearLayers();
             App.linkedArticles.clearLayers();
             App.linkedLines.clearLayers();
+
+            App.map.closePopup();
+
+            App.currentArticle = null;
+
         },
 
         getLinkedArticles: function(id){
@@ -74,13 +103,21 @@ var App = (function() {
                 App.linkedArticles.addGeoJSON(data);
 
                 App.linkedLines.clearLayers();
+
+                var bounds = new L.LatLngBounds();
+
                 for (var i = 0; i < data.features.length; i++){
                     var feature = data.features[i];
                     var line = new L.Polyline([ new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]),
                                             new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
                     App.linkedLines.addLayer(line);
+
+                    // Hack: linkedArticles does not have a getBounds method!
+                    bounds.extend(new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0]));
                 }
                 App.linkedLines.setStyle({weight:2, color: "gray",clickable: false});
+
+                App.map.fitBounds(bounds);
             });
 
         },
@@ -109,6 +146,7 @@ var App = (function() {
             $("#clear").click(App.clear);
 
             // Set map div size
+
             $("#map").width($(window).width());
             $("#map").height($(window).height());
 
@@ -119,14 +157,6 @@ var App = (function() {
             var osmAttribution = 'Map data &copy; 2011 OpenStreetMap contributors, Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">';
             var osm = new L.TileLayer(osmUrl, {maxZoom: 18, attribution: osmAttribution ,subdomains: '1234'});
             this.map.addLayer(osm);
-
-            /*
-            var bingKey = "AjtIygmd5pYzN3AaY3l_wLlbM2rW5CxbFaLzjxksZptvovvMVAKFwmJ_NDSVcfQu";
-
-            var bing = L.BingLayer(bingKey);
-
-            this.map.addLayer(bing);
-            */
 
             this.lines = new L.MultiPolyline([]);
             this.map.addLayer(this.lines);
@@ -217,6 +247,10 @@ var App = (function() {
 
             this.map.addLayer(this.linkedArticles);
 
+            this.map.on("click", function(e){
+                    var s;
+
+            });
 
             this.map.setView(new L.LatLng(0, 0), 1);
 
@@ -226,150 +260,9 @@ var App = (function() {
     }
 })()
 
-// Add a marker with a custom icon that will show a popup when clicked
-/*
-var newIcon = L.Icon.extend({
-    iconUrl: '../img/marker.png',
-    iconSize: new L.Point(14, 25),
-    iconAnchor: new L.Point(14, 25),
-    popupAnchor: new L.Point(-3, 25)
-});
-*/
-/*
-var markerLocation = new L.LatLng(51.5, -0.09);
-//var marker = new L.Marker(markerLocation,{icon: new newIcon()});
-var marker = new L.Marker(markerLocation);
-marker.bindPopup("PROBLEM?")
-map.addLayer(marker);
 
-// Set the map view in london, at zoom level 13
-var london = new L.LatLng(51.505, -0.09);
-map.setView(london, 13);
-
-        }
-
-    }
-}
-
-
-*/
 $("document").ready(function(){
         App.setup()
-        })
-
-
-L.BingLayer = L.TileLayer.extend({
-    options: {
-        subdomains: [0, 1, 2, 3],
-        attribution: 'Bing',
-    },
-
-    initialize: function(key, options) {
-        L.Util.setOptions(this, options);
-
-        this._key = key;
-        this._url = null;
-        this.meta = {};
-        this._update_tile = this._update;
-        this._update = function() {
-            if (this._url == null) return;
-            this._update_attribution();
-            this._update_tile();
-        };
-        this.loadMetadata();
-    },
-
-    tile2quad: function(x, y, z) {
-        var quad = '';
-        for (var i = z; i > 0; i--) {
-            var digit = 0;
-            var mask = 1 << (i - 1);
-            if ((x & mask) != 0) digit += 1;
-            if ((y & mask) != 0) digit += 2;
-            quad = quad + digit;
-        }
-        return quad;
-    },
-
-    getTileUrl: function(p, z) {
-        var subdomains = this.options.subdomains,
-            s = this.options.subdomains[(p.x + p.y) % subdomains.length];
-        return this._url.replace('{subdomain}', s)
-                .replace('{quadkey}', this.tile2quad(p.x, p.y, z))
-                .replace('{culture}', '');
-    },
-
-    loadMetadata: function() {
-        var _this = this;
-        var cbid = '_bing_metadata';
-        window[cbid] = function (meta) {
-            _this.meta = meta;
-            window[cbid] = undefined;
-            var e = document.getElementById(cbid);
-            e.parentNode.removeChild(e);
-            if (meta.errorDetails) {
-                alert("Got metadata" + meta.errorDetails);
-                return;
-            }
-            _this.initMetadata();
-        };
-        var url = "http://dev.virtualearth.net/REST/v1/Imagery/Metadata/Aerial?include=ImageryProviders&jsonp=" + cbid + "&key=" + this._key;
-        var script = document.createElement("script");
-        script.type = "text/javascript";
-        script.src = url;
-        script.id = cbid;
-        document.getElementsByTagName("head")[0].appendChild(script);
-    },
-
-    initMetadata: function() {
-        var r = this.meta.resourceSets[0].resources[0];
-        this.options.subdomains = r.imageUrlSubdomains;
-        this._url = r.imageUrl;
-        this._providers = [];
-        for (var i = 0; i < r.imageryProviders.length; i++) {
-            var p = r.imageryProviders[i];
-            for (var j = 0; j < p.coverageAreas.length; j++) {
-                var c = p.coverageAreas[j];
-                var coverage = {zoomMin: c.zoomMin, zoomMax: c.zoomMax, active: false};
-                var bounds = new L.LatLngBounds(
-                        new L.LatLng(c.bbox[0]+0.01, c.bbox[1]+0.01),
-                        new L.LatLng(c.bbox[2]-0.01, c.bbox[3]-0.01)
-                );
-                coverage.bounds = bounds;
-                coverage.attrib = p.attribution;
-                this._providers.push(coverage);
-            }
-        }
-        this._update();
-    },
-
-    _update_attribution: function() {
-        var bounds = this._map.getBounds();
-        var zoom = this._map.getZoom();
-        for (var i = 0; i < this._providers.length; i++) {
-            var p = this._providers[i];
-            if ((zoom <= p.zoomMax && zoom >= p.zoomMin) &&
-                this._intersects(bounds, p.bounds)) {
-                if (!p.active)
-                    this._map.attributionControl.addAttribution(p.attrib);
-                p.active = true;
-            } else {
-                if (p.active)
-                    this._map.attributionControl.removeAttribution(p.attrib);
-                p.active = false;
-            }
-        }
-    },
-
-    _intersects: function(obj1, obj2) /*-> Boolean*/ {
-        var sw = obj1.getSouthWest(),
-            ne = obj1.getNorthEast(),
-            sw2 = obj2.getSouthWest(),
-            ne2 = obj2.getNorthEast();
-
-        return (sw2.lat <= ne.lat) && (sw2.lng <= ne.lng) &&
-                (sw.lat <= ne2.lat) && (sw.lng <= ne2.lng);
-    }
 });
 
 

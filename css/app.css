@@ -5,3 +5,20 @@ body{
 
 #map{
 }
+
+#search {
+    width: 250px;
+}
+
+#results {
+    display:none;
+    width: 250px;
+    height: 200px;
+    overflow: auto;
+}
+
+#results > div {
+    cursor: pointer;
+    background: white;
+
+}
