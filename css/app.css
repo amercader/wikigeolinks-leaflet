@@ -19,5 +19,15 @@ body{
 .results > div {
     cursor: pointer;
     background: white;
+}
 
+/* jQuery UI overrides */
+
+.ui-slider-horizontal{
+    height: 0.4em;
+}
+
+.ui-slider .ui-slider-handle{
+    width: 0.8em;   
+    height: 0.8em;
 }

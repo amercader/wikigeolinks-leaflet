@@ -27,6 +27,54 @@ L.Handler.CtrlClickQuery = L.Handler.extend({
 });
 
 
+
+L.Ellipse = L.Circle.extend({
+	initialize: function(latlng, radiusX, radiusY, options) {
+		L.Path.prototype.initialize.call(this, options);
+		
+		this._latlng = latlng;
+		this._mRadiusX = radiusX;
+		this._mRadiusY = radiusY;
+	},
+
+    setRadius: function(radiusX,radiusY) {
+		this._mRadiusX = radiusX;
+		this._mRadiusY = radiusY;
+
+        this._redraw();
+		return this;
+	},
+	
+	projectLatlngs: function() {
+		var equatorLength = 40075017,
+            meridianLength = 40007863,
+			scale = this._map.options.scale(this._map._zoom);
+		
+		this._point = this._map.latLngToLayerPoint(this._latlng);
+		this._radiusX = (this._mRadiusX / equatorLength) * scale;
+		this._radiusY = (this._mRadiusY / meridianLength) * scale;
+	},
+
+    getPathString: function() {
+		var p = this._point,
+			rx = this._radiusX,
+            ry = this._radiusY;	
+
+        if (L.Path.SVG) {
+			return "M" + p.x + "," + (p.y - ry) +
+					"A" + rx + "," + ry + ",0,1,1," +
+					(p.x - 0.1) + "," + (p.y - ry) + " z";
+		} else {
+			p._round();
+			rx = Math.round(rx);
+			ry = Math.round(ry);
+			return "AL " + p.x + "," + p.y + " " + rx + "," + ry + " 0," + (65535 * 360);
+		}
+	}
+
+});
+
+
 var App = (function() {
     //
     var formatLink = function(string){
@@ -99,7 +147,15 @@ var App = (function() {
         searchByLatLng: function(lat,lng){
 
             var zoom = App.map.getZoom() || 1;
-            var tolerance = 1 / zoom;
+			var scale = App.map.options.scale();
+            var tolerance = (1 / zoom) * App.tolerance;
+            var radius = tolerance / 0.00001;
+            var dpm = 111319.9;
+            var radius = 100000;
+
+            var tolerance = radius / dpm;
+
+            console.log(tolerance);
 
             var url = 'http://127.0.0.1:5000/articles';
             url += "?lat=" + lat;
@@ -115,11 +171,38 @@ var App = (function() {
 
             $.get(url,function(data){
 
+                App.searchResults.clearLayers();
+                var circle = new L.Ellipse(
+                        new L.LatLng(lat,lng),
+                        radius,
+                        2*radius,
+                        {color:"red"}
+                );
+                circle.on("click",function(){
+                    App.map.openPopup(popup);
+                });
+
+                App.searchResults.addLayer(circle);
+
                 var resultsDiv = $("<div></div>");
                 resultsDiv.addClass("results");
                 if (data && data.features.length){
-                    var div, title, results;
+                    var div, title, results, leafletLayer;
                     for (var i = 0; i < data.features.length; i++){
+
+                        leafletLayer = L.GeoJSON.geometryToLayer(data.features[i].geometry,function (latlng){
+                                    return new L.CircleMarker(latlng, {
+                                        radius: 3,
+                                        fillColor: "gray",
+                                        color: "#000",
+                                        weight: 1,
+                                        opacity: 1,
+                                        fillOpacity: 0.8
+                                        })
+                                    }
+                                 );
+
+
                         title = data.features[i].properties.title;
 
                         result = title + " (" + data.features[i].properties.links_count + ")";
@@ -131,7 +214,17 @@ var App = (function() {
                             App.addArticle(e.data.feature);
                             App.getLinkedArticles(e.data.feature.id);
                         });
+                        div.mouseover({"layer": leafletLayer},function(e){
+                            e.data.layer.setStyle({fillColor: "yellow"});
+                        });
+                        div.mouseout({"layer": leafletLayer},function(e){
+                            e.data.layer.setStyle({fillColor: "gray"});
+                        });
+
                         resultsDiv.append(div);
+
+                        App.searchResults.addLayer(leafletLayer);
+
                     }
 
                 } else {
@@ -139,10 +232,27 @@ var App = (function() {
                 }
 
                 var popup = new L.Popup();
-                popup.setLatLng(new L.LatLng(lat,lng));
+                popup.setLatLng(new L.LatLng(lat+tolerance,lng));
                 // We need the actual DOM object
                 popup.setContent(resultsDiv.get(0));
 
+
+                /*
+                App.searchResults.addLayer(
+                    new L.GeoJSON(data,{
+                        pointToLayer: function (latlng){
+                            return new L.CircleMarker(latlng, {
+                                radius: 3,
+                                fillColor: "gray",
+                                color: "#000",
+                                weight: 1,
+                                opacity: 1,
+                                fillOpacity: 0.8
+                                })
+                            }
+                         })
+                    );
+                */
                 App.map.openPopup(popup);
                 $("#map").css("cursor", "default");
 
@@ -170,6 +280,7 @@ var App = (function() {
             App.lines.clearLayers();
             App.linkedArticles.clearLayers();
             App.linkedLines.clearLayers();
+            App.searchResults.clearLayers();
 
             App.map.closePopup();
 
@@ -220,6 +331,8 @@ var App = (function() {
             App.currentArticle = feature;
         },
 
+        tolerance: 0.5,
+
         setup: function(){
             // Setup events
             $("#search").keyup(function(e){
@@ -228,8 +341,17 @@ var App = (function() {
 
             $("#clear").click(App.clear);
 
-            // Set map div size
+            // UI widgets
+            $("#tolerance").slider({
+                min: 1,
+                max: 100,
+                slide: function(e,ui){
+                    App.tolerance = ui.value;
+                }
+            });
 
+
+            // Set map div size
             $("#map").width($(window).width());
             $("#map").height($(window).height());
 
@@ -247,6 +369,8 @@ var App = (function() {
             this.linkedLines = new L.MultiPolyline([]);
             this.map.addLayer(this.linkedLines);
 
+            this.searchResults = new L.LayerGroup([]);
+            this.map.addLayer(this.searchResults);
 
             var articlesIcon = L.Icon.extend({
                 iconUrl: 'img/icon_wiki.png',
