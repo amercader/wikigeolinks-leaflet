@@ -155,13 +155,18 @@ var App = (function() {
 
         },
 
-        getArticle: function(id){
+        getArticle: function(id,random){
             var url = 'http://127.0.0.1:5000/articles/' + id + '.json';
             url = "proxy.php?url="+escape(url);
             $.getJSON(url,function(data){
                 if (data){
                     if (data.properties.links_count == 0){
-                        alert('Sorry, no links for this article');
+                        if (random){
+                            // Keep looking for an article with links
+                            App.randomArticle();
+                        } else {
+                            alert('Sorry, no links for this article');
+                        }
                     } else {
                         App.addArticle(data);
                         App.getLinkedArticles(id);
@@ -184,6 +189,12 @@ var App = (function() {
 
             App.currentArticle = null;
 
+        },
+
+        randomArticle: function(){
+            App.clear();
+            var id = Math.round(365000 - 365000 * Math.random());
+            App.getArticle(id,true);
         },
 
         getLinkedArticles: function(id){
@@ -244,12 +255,15 @@ var App = (function() {
         },
 
         setup: function(){
+
             // Setup events
             $("#search").keyup(function(e){
                 App.search(e.target.value);
             });
 
             $("#clear").click(App.clear);
+            $("#random").click(App.randomArticle);
+
             $("#show-previous-articles").click(function(){
                 App.settings.showPreviousArticles = !App.settings.showPreviousArticles;
             });
@@ -258,6 +272,16 @@ var App = (function() {
             // Set map div size
             $("#map").width($(window).width());
             $("#map").height($(window).height());
+
+            // Leaflet setup
+            this.setupMap();
+
+
+            this.getArticle('31862');
+
+       },
+
+        setupMap: function(){
 
             this.map = new L.Map('map');
 
@@ -359,7 +383,6 @@ var App = (function() {
 
             this.map.setView(new L.LatLng(0, 0), 1);
 
-            this.getArticle('31862');
         }
     }
 })()
