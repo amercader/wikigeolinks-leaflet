@@ -200,6 +200,9 @@ var App = (function() {
                 }
                 App.linkedLines.setStyle({weight:2, color: "gray",clickable: false});
 
+                // Make sure current article is shown in the bounds
+                bounds.extend(new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]));
+
                 App.map.fitBounds(bounds);
             });
 
