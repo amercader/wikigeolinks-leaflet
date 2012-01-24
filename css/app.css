@@ -21,3 +21,7 @@ body{
     background: white;
 
 }
+
+.results .no-results{
+    font-style: italic;
+}

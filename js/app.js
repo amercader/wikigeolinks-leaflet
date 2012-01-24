@@ -74,8 +74,9 @@ var App = (function() {
                 $.get(url,function(data){
 
                     var resultsDiv = $("#search-results");
+                    resultsDiv.empty().show();
+
                     if (data && data.features.length){
-                        resultsDiv.empty().show();
                         var div, title, result;
                         var re = new RegExp(text,"gi");
                         for (var i = 0; i < data.features.length; i++){
@@ -95,7 +96,7 @@ var App = (function() {
                             resultsDiv.append(div);
                         }
                     } else {
-                        resultsDiv.append("No results found");
+                        resultsDiv.append("<div class=\"no-results\">No results found</a>");
                     }
                 });
             }
