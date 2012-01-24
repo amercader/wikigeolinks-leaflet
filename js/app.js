@@ -43,6 +43,11 @@ var App = (function() {
     }
 
     return {
+
+        settings: {
+            showPreviousArticles: true
+        },
+
         map: null,
 
         articles: null,
@@ -155,8 +160,12 @@ var App = (function() {
             url = "proxy.php?url="+escape(url);
             $.getJSON(url,function(data){
                 if (data){
-                    App.addArticle(data);
-                    App.getLinkedArticles(id);
+                    if (data.properties.links_count == 0){
+                        alert('Sorry, no links for this article');
+                    } else {
+                        App.addArticle(data);
+                        App.getLinkedArticles(id);
+                    }
                 } else {
                     alert('No data received');
                 }
@@ -181,6 +190,10 @@ var App = (function() {
             var url = 'http://127.0.0.1:5000/articles/' + id + '/linked';
             url = "proxy.php?url="+escape(url);
             $.getJSON(url,function(data){
+                if (!data || data.length == 0){
+                    alert("Sorry, no links for this article");
+                    return;
+                }
 
                 App.linkedArticles.clearLayers();
                 App.linkedArticles.addGeoJSON(data);
@@ -209,17 +222,24 @@ var App = (function() {
         },
 
         addArticle: function(feature){
+            var showPrevious = App.settings.showPreviousArticles;
+
+            if (!showPrevious){
+                App.articles.clearLayers();
+                App.lines.clearLayers();
+            }
             // Add feature to articles layer
             App.articles.addGeoJSON(feature);
 
 
             // Add line
-            if (App.currentArticle){
+            if (showPrevious && App.currentArticle){
                 var line = new L.Polyline([ new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]),
                                         new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
                 App.lines.addLayer(line);
                 App.lines.setStyle({weight:4, color: "red",clickable: false});
             }
+
             App.currentArticle = feature;
         },
 
@@ -230,9 +250,12 @@ var App = (function() {
             });
 
             $("#clear").click(App.clear);
+            $("#show-previous-articles").click(function(){
+                App.settings.showPreviousArticles = !App.settings.showPreviousArticles;
+            });
+
 
             // Set map div size
-
             $("#map").width($(window).width());
             $("#map").height($(window).height());
 
