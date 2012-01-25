@@ -6,7 +6,8 @@
         <link rel="stylesheet" href="css/app.css" />
     </head>
     <body>
-        <div id="top" style="z-index:50000;position:absolute; top: 40px; left: 50px; width: 350px">
+        <div id="toolbar-event" style="z-index:10000;position:absolute; top: 0px; left: 0px; width: 100%;height:40px;">
+        <div id="toolbar" style="z-index:5000;position:absolute; top: 0px; left: 0px; width: 100%;background-color:red">
             <div>
                 <input type="text" id="search" />
                 <div id="search-results" class="results" style="display:none"></div>
@@ -14,6 +15,9 @@
             <div><a href="#" id="clear">Clear</a></div>
             <div><a href="#" id="random">Random</a></div>
             <div><input type="checkbox" id="show-previous-articles" checked /><label for="show-previous-articles">Show previous articles</label></div>
+
+        </div>
+        <div id="top" >
         </div>
 
 

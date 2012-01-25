@@ -28,18 +28,21 @@ L.Handler.CtrlClickQuery = L.Handler.extend({
 
 
 var App = (function() {
-    //
+
+    // conf options
+    var serviceURL = 'http://localhost:5000/articles';
+    var proxyURL = '';
+
+
     var formatLink = function(string){
         return encodeURIComponent(string.replace(" ","_","g"));
     }
-
 
     var getPopupContent = function(properties){
         return '<img src="img/icon_wiki.png" alt="Wikipedia article" />' +
                '<a href="http://en.wikipedia.org/wiki/' + formatLink(properties.title) +
                '" target="_blank" title="Wikipedia article for "' + properties.title + '">'
                + properties.title + '</a>'
-
     }
 
     return {
@@ -60,18 +63,40 @@ var App = (function() {
 
         currentArticle: null,
 
+        getURL:function(offset,params){
+            if (!serviceURL)
+                return False;
+
+            var url = serviceURL;
+
+            if (offset && !(url.substring(url.length-1,url.length) == '/'))
+                url += '/';
+
+            if (offset)
+                url += offset;
+
+            if (params)
+                url += '?' + $.param(params);
+
+            if (proxyURL)
+                url = proxyURL + escape(url);
+
+            return url;
+        },
+
         search: function(text){
             if (text.length > 3){
-                var url = 'http://127.0.0.1:5000/articles';
-                url += "?title__ilike=%" + text + "%";
-                url += "&attrs=id,title,links_count";
-                url += "&queryable=title";
-                url += "&order_by=links_count";
-                url += "&dir=desc";
-                url += "&limit=30";
-                url = "proxy.php?url="+escape(url);
+                var offset = "";
+                var params = {
+                    title__ilike: "%" + text + "%",
+                    attrs:"id,title,links_count",
+                    queryable:"title",
+                    order_by:"links_count",
+                    dir:"desc",
+                    limit:"30"
+                };
 
-                $.get(url,function(data){
+                $.get(this.getURL(offset,params),function(data){
 
                     var resultsDiv = $("#search-results");
                     resultsDiv.empty().show();
@@ -104,22 +129,23 @@ var App = (function() {
 
         searchByLatLng: function(lat,lng){
 
+            $("#map").css("cursor", "wait");
+
             var zoom = App.map.getZoom() || 1;
             var tolerance = 1 / zoom;
 
-            var url = 'http://127.0.0.1:5000/articles';
-            url += "?lat=" + lat;
-            url += "&lon=" + lng;
-            url += "&tolerance=" + tolerance;
-            url += "&attrs=id,title,links_count";
-            url += "&order_by=links_count";
-            url += "&dir=desc";
-            url += "&limit=30";
-            url = "proxy.php?url="+escape(url);
+            var offset = "";
+            var params = {
+                lat: lat,
+                lon: lng,
+                tolerance: tolerance,
+                attrs:"id,title,links_count",
+                order_by:"links_count",
+                dir:"desc",
+                limit:"30"
+            };
 
-            $("#map").css("cursor", "wait");
-
-            $.get(url,function(data){
+            $.get(this.getURL(offset,params),function(data){
 
                 var resultsDiv = $("<div></div>");
                 resultsDiv.addClass("results");
@@ -157,9 +183,10 @@ var App = (function() {
         },
 
         getArticle: function(id,random){
-            var url = 'http://127.0.0.1:5000/articles/' + id + '.json';
-            url = "proxy.php?url="+escape(url);
-            $.getJSON(url,function(data){
+
+            var offset = id + '.json';
+
+            $.getJSON(this.getURL(offset),function(data){
                 if (data){
                     if (data.properties.links_count == 0){
                         if (random){
@@ -199,9 +226,9 @@ var App = (function() {
         },
 
         getLinkedArticles: function(id){
-            var url = 'http://127.0.0.1:5000/articles/' + id + '/linked';
-            url = "proxy.php?url="+escape(url);
-            $.getJSON(url,function(data){
+            var offset = id + '/linked';
+
+            $.getJSON(this.getURL(offset),function(data){
                 if (!data || data.length == 0){
                     alert("Sorry, no links for this article");
                     return;
@@ -258,6 +285,14 @@ var App = (function() {
         setup: function(){
 
             // Setup events
+                   /*
+            $("#toolbar-event").mouseover(function(e){
+                $("#toolbar").show("slide",{ direction: "down" },500);
+            });
+            $("#toolbar-event").mouseout(function(e){
+                $("#toolbar").hide("slide",{ direction: "up" },500);
+            });
+*/
             $("#search").keyup(function(e){
                 App.search(e.target.value);
             });
