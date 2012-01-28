@@ -48,7 +48,8 @@ var App = (function() {
     return {
 
         settings: {
-            showPreviousArticles: true
+            showPreviousArticles: true,
+            showLinkedLines: true
         },
 
         map: null,
@@ -234,21 +235,29 @@ var App = (function() {
                     return;
                 }
 
-                // Rebuild lines first so they appear under the markers
-                App.linkedLines.clearLayers();
 
                 var bounds = new L.LatLngBounds();
 
+                // Rebuild lines first so they appear under the markers
+                App.linkedLines.clearLayers();
+
                 for (var i = 0; i < data.features.length; i++){
                     var feature = data.features[i];
-                    var line = new L.Polyline([ new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]),
-                                            new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
-                    App.linkedLines.addLayer(line);
+
+                    if (App.settings.showLinkedLines){
+                        var line = new L.Polyline([
+                                        new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]),
+                                        new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
+                        App.linkedLines.addLayer(line);
+                    }
 
                     // Hack: linkedArticles does not have a getBounds method!
                     bounds.extend(new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0]));
                 }
-                App.linkedLines.setStyle({weight:2, color: "gray",clickable: false});
+
+                if (App.settings.showLinkedLines){
+                    App.linkedLines.setStyle({weight:2, color: "gray",clickable: false});
+                }
 
                 App.linkedArticles.clearLayers();
                 App.linkedArticles.addGeoJSON(data);
@@ -295,6 +304,9 @@ var App = (function() {
 
             $("#show-previous-articles").click(function(){
                 App.settings.showPreviousArticles = !App.settings.showPreviousArticles;
+            });
+            $("#show-linked-lines").click(function(){
+                App.settings.showLinkedLines = !App.settings.showLinkedLines;
             });
 
 
