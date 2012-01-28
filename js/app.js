@@ -234,9 +234,7 @@ var App = (function() {
                     return;
                 }
 
-                App.linkedArticles.clearLayers();
-                App.linkedArticles.addGeoJSON(data);
-
+                // Rebuild lines first so they appear under the markers
                 App.linkedLines.clearLayers();
 
                 var bounds = new L.LatLngBounds();
@@ -251,6 +249,9 @@ var App = (function() {
                     bounds.extend(new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0]));
                 }
                 App.linkedLines.setStyle({weight:2, color: "gray",clickable: false});
+
+                App.linkedArticles.clearLayers();
+                App.linkedArticles.addGeoJSON(data);
 
                 // Make sure current article is shown in the bounds
                 bounds.extend(new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]));
@@ -285,14 +286,6 @@ var App = (function() {
         setup: function(){
 
             // Setup events
-                   /*
-            $("#toolbar-event").mouseover(function(e){
-                $("#toolbar").show("slide",{ direction: "down" },500);
-            });
-            $("#toolbar-event").mouseout(function(e){
-                $("#toolbar").hide("slide",{ direction: "up" },500);
-            });
-*/
             $("#search").keyup(function(e){
                 App.search(e.target.value);
             });
@@ -336,7 +329,9 @@ var App = (function() {
 
             var articlesIcon = L.Icon.extend({
                 iconUrl: 'img/icon_wiki.png',
+                shadowUrl: 'img/icon_wiki_shadow.png',
                 iconSize: new L.Point(20, 20),
+                shadowSize: new L.Point(27, 27),
                 iconAnchor: new L.Point(10, 10),
                 popupAnchor: new L.Point(0, 0)
             });
@@ -353,7 +348,7 @@ var App = (function() {
             this.articles.on('featureparse', function(e) {
                 if (e.properties){
                    (function(properties) {
-                        var popup = new L.Popup();
+                        var popup = new L.Popup({offset: new L.Point(0,-4)});
                         popup.setLatLng(e.layer.getLatLng());
                         popup.setContent(getPopupContent(properties));
 
@@ -371,9 +366,9 @@ var App = (function() {
             this.map.addLayer(this.articles);
 
             var linkedArticlesMarkerOptions = {
-                radius: 4,
-                color: "#000",
-                weight: 1,
+                radius: 5,
+                color: "gray",
+                weight: 2,
                 opacity: 1,
                 fillOpacity: 1
             };
@@ -387,9 +382,9 @@ var App = (function() {
                 if (e.properties){
                    var id = e.id;
                    (function(properties) {
-                        var color = (properties.links_count != 0) ? "#00FF00" :"#FF0000";
+                        var color = (properties.links_count != 0) ? "#82E058" :"#E84D4D";
                         e.layer.setStyle({fillColor: color});
-                        var popup = new L.Popup();
+                        var popup = new L.Popup({offset: new L.Point(0,-4)});
                         // Hack: When using CircleMarker there is no way to get the coordinates
                         // of the added geometry (e.layer.getLatLng() does not work), so we use
                         // the bbox
