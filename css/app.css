@@ -1,6 +1,8 @@
 body{
     margin: 0px; 
     padding: 0px;
+    font-family: helvetica, arial, sans-serif;
+
 }
 
 #map{
@@ -28,4 +30,17 @@ body{
 
 .results .no-results{
     font-style: italic;
+}
+
+.popup-article-content{
+    min-width: 100px;
+    min-height: 20px;
+    background: white url('../img/icon_wiki_bg.png') no-repeat top left;
+    padding-top: 4px;
+    padding-left: 30px;
+}
+
+.popup-article-content .links-count{
+    margin-top: 3px;
+    font-size: x-small;
 }

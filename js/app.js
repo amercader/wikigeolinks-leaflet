@@ -39,10 +39,14 @@ var App = (function() {
     }
 
     var getPopupContent = function(properties){
-        return '<img src="img/icon_wiki.png" alt="Wikipedia article" />' +
-               '<a href="http://en.wikipedia.org/wiki/' + formatLink(properties.title) +
-               '" target="_blank" title="Wikipedia article for "' + properties.title + '">'
-               + properties.title + '</a>'
+        return '<div class="popup-article-content">' +
+                   '<a href="http://en.wikipedia.org/wiki/' + formatLink(properties.title) +
+                   '" target="_blank" title="Wikipedia article for ' + properties.title + '">' +
+                   properties.title + '</a>' +
+                   '<div class="links-count">' + properties.links_count + ' linked articles</div>' +
+               '</div>';
+
+
     }
 
     return {
