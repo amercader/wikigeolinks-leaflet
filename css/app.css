@@ -6,10 +6,7 @@ body{
 }
 
 #map{
-}
-
-#toolbar > div{
-    float:left;
+    top: 40px;
 }
 
 #search {
@@ -43,4 +40,54 @@ body{
 .popup-article-content .links-count{
     margin-top: 3px;
     font-size: x-small;
+}
+
+
+/* Bootstrap overrides */
+
+.navbar .btn-small{
+    margin-right: 10px;
+}
+
+.icon-random {
+    width: 15px;
+    height: 15px;
+}
+
+.icon-map {
+    background-image: url('../img/icon_bg_map.png');
+    background-position: 0 0;
+}
+
+.icon-sat {
+    background-image: url('../img/icon_bg_sat.png');
+    background-position: 0 0;
+}
+
+.btn-group {
+    width: auto;
+    float:left;
+}
+
+.dropdown-menu {
+    min-width: 220px;
+    max-width: 250px;
+}
+
+.dropdown-menu li{
+    clear: both;
+}
+
+.dropdown-menu input{
+    float:left;
+    margin-left: 15px;
+    margin-top: 3px;
+}
+
+.dropdown-menu label{
+    float:left;
+    margin-right: 15px;
+    margin-left: 5px;
+    margin-top: 3px;
+    color: #555;
 }

@@ -316,7 +316,7 @@ var App = (function() {
 
             // Set map div size
             $("#map").width($(window).width());
-            $("#map").height($(window).height());
+            $("#map").height($(window).height() - 40); // minus the nav bar 40px
 
             // Leaflet setup
             this.setupMap();
