@@ -1,8 +1,17 @@
 body{
-    margin: 0px; 
+    margin: 0px;
     padding: 0px;
     font-family: helvetica, arial, sans-serif;
 
+}
+
+/*
+ * Bootstrap sets img max-width to 100%, which prevents Leaflet
+ * from showing the tiles correctly on Firefox 10.
+ * This has been fixed in 61d7468
+ */
+img {
+    max-width: none;
 }
 
 #map{
