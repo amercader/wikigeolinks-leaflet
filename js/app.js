@@ -49,6 +49,51 @@ var App = (function() {
 
     }
 
+    // Custom lookup function for Bootstrap typeahead
+    var ajaxLookup = function (event) {
+
+        var that = this;
+
+        this.query = this.$element.val()
+
+        if (!this.query || this.query.length < 3) {
+            return this.shown ? this.hide() : this
+        }
+
+        var offset = "";
+        var params = {
+            title__ilike: "%" + this.query + "%",
+            attrs:"id,title,links_count",
+            queryable:"title",
+            order_by:"links_count",
+            dir:"desc",
+            limit:"12"
+        };
+
+        $.get(App.getURL(offset,params),function(data){
+            var items = [];
+            for (var i = 0; i < data.features.length; i++){
+                title = data.features[i].properties.title;
+                result = title + " (" + data.features[i].properties.links_count + ")";
+                items.push(result);
+            }
+            if (!items.length) {
+                return that.shown ? that.hide() : that
+            }
+            that.render(items.slice(0, that.options.items))
+
+            that.$menu.find("li").map(function(i,element){
+                $(element).click({"feature": data.features[i]},function(e){
+                            App.clear();
+                            App.addArticle(e.data.feature);
+                            App.getLinkedArticles(e.data.feature.id);
+
+                });
+            })
+            that.show()
+        });
+    }
+
     return {
 
         settings: {
@@ -87,49 +132,6 @@ var App = (function() {
                 url = proxyURL + escape(url);
 
             return url;
-        },
-
-        search: function(text){
-            if (text.length > 3){
-                var offset = "";
-                var params = {
-                    title__ilike: "%" + text + "%",
-                    attrs:"id,title,links_count",
-                    queryable:"title",
-                    order_by:"links_count",
-                    dir:"desc",
-                    limit:"30"
-                };
-
-                $.get(this.getURL(offset,params),function(data){
-
-                    var resultsDiv = $("#search-results");
-                    resultsDiv.empty().show();
-
-                    if (data && data.features.length){
-                        var div, title, result;
-                        var re = new RegExp(text,"gi");
-                        for (var i = 0; i < data.features.length; i++){
-                            title = data.features[i].properties.title;
-                            result = title.replace(re, function(m){
-                                        return "<strong>" + m + "</strong>"
-                                     }) + " (" + data.features[i].properties.links_count + ")";
-
-                            div = $("<div></div>").append(result);
-                            div.click({"feature": data.features[i]},function(e){
-                                $("#search").val($(this).text());
-                                resultsDiv.empty().hide();
-                                App.clear();
-                                App.addArticle(e.data.feature);
-                                App.getLinkedArticles(e.data.feature.id);
-                            });
-                            resultsDiv.append(div);
-                        }
-                    } else {
-                        resultsDiv.append("<div class=\"no-results\">No results found</a>");
-                    }
-                });
-            }
         },
 
         searchByLatLng: function(lat,lng){
@@ -298,10 +300,13 @@ var App = (function() {
 
         setup: function(){
 
-            // Setup events
-            $("#search").keyup(function(e){
-                App.search(e.target.value);
-            });
+            // Use our custom lookup function for the search field typeahead
+            $.extend(
+                    $('#search').typeahead({items:12}).data('typeahead'),
+                    {lookup:ajaxLookup}
+                    );
+
+
 
             $("#clear").click(App.clear);
             $("#random").click(App.randomArticle);
