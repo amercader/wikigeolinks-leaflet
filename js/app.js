@@ -103,15 +103,17 @@ var App = (function() {
 
         map: null,
 
-        articles: null,
+        layers: {
+            map: null,
+            sat: null,
+            currentArticle: null,
+            articles: null,
+            lines: null,
+            linkedArticles: null,
+            linkedLines: null
+        },
 
-        lines: null,
-
-        linkedArticles: null,
-
-        linkedLines: null,
-
-        currentArticle: null,
+        currentFeature: null,
 
         getURL:function(offset,params){
             if (!serviceURL)
@@ -215,15 +217,17 @@ var App = (function() {
         },
 
         clear: function(){
-            App.articles.clearLayers();
-            App.lines.clearLayers();
-            App.linkedArticles.clearLayers();
-            App.linkedLines.clearLayers();
+            App.layers.currentArticle.clearLayers();
+            App.layers.articles.clearLayers();
+            App.layers.lines.clearLayers();
+            App.layers.linkedArticles.clearLayers();
+            App.layers.linkedLines.clearLayers();
 
             App.map.closePopup();
 
-            App.currentArticle = null;
-
+            App.currentFeature = null;
+            
+            $("#search").val("");
         },
 
         randomArticle: function(){
@@ -245,31 +249,27 @@ var App = (function() {
                 var bounds = new L.LatLngBounds();
 
                 // Rebuild lines first so they appear under the markers
-                App.linkedLines.clearLayers();
+                App.layers.linkedLines.clearLayers();
 
                 for (var i = 0; i < data.features.length; i++){
                     var feature = data.features[i];
 
-                    if (App.settings.showLinkedLines){
-                        var line = new L.Polyline([
-                                        new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]),
-                                        new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
-                        App.linkedLines.addLayer(line);
-                    }
+                    var line = new L.Polyline([
+                                    new L.LatLng(App.currentFeature.geometry.coordinates[1],App.currentFeature.geometry.coordinates[0]),
+                                    new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
+                    App.layers.linkedLines.addLayer(line);
 
                     // Hack: linkedArticles does not have a getBounds method!
                     bounds.extend(new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0]));
                 }
 
-                if (App.settings.showLinkedLines){
-                    App.linkedLines.setStyle({weight:2, color: "gray",clickable: false});
-                }
+                App.layers.linkedLines.setStyle({weight:2, color: "gray",clickable: false});
 
-                App.linkedArticles.clearLayers();
-                App.linkedArticles.addGeoJSON(data);
+                App.layers.linkedArticles.clearLayers();
+                App.layers.linkedArticles.addGeoJSON(data);
 
                 // Make sure current article is shown in the bounds
-                bounds.extend(new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]));
+                bounds.extend(new L.LatLng(App.currentFeature.geometry.coordinates[1],App.currentFeature.geometry.coordinates[0]));
 
                 App.map.fitBounds(bounds);
             });
@@ -277,25 +277,33 @@ var App = (function() {
         },
 
         addArticle: function(feature){
-            var showPrevious = App.settings.showPreviousArticles;
 
-            if (!showPrevious){
-                App.articles.clearLayers();
-                App.lines.clearLayers();
-            }
-            // Add feature to articles layer
-            App.articles.addGeoJSON(feature);
+            if (App.currentFeature){
 
+                // Add previous feature to articles layer
+                App.layers.articles.addGeoJSON(App.currentFeature);
 
-            // Add line
-            if (showPrevious && App.currentArticle){
-                var line = new L.Polyline([ new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]),
+                // Add line
+                var line = new L.Polyline([ new L.LatLng(App.currentFeature.geometry.coordinates[1],App.currentFeature.geometry.coordinates[0]),
                                         new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
-                App.lines.addLayer(line);
-                App.lines.setStyle({weight:4, color: "red",clickable: false});
+                App.layers.lines.addLayer(line);
+                App.layers.lines.setStyle({weight:4, color: "red",clickable: false});
+            }
+            // Add new feature to the current article layer
+            App.layers.currentArticle.clearLayers();
+            App.layers.currentArticle.addGeoJSON(feature);
+
+            App.currentFeature = feature;
+        },
+
+        setMapBackground: function(mode){
+            mode = mode || "map";
+            if (mode == "map"){
+                App.map.removeLayer(App.layers.sat).addLayer(App.layers.map);
+            } else if (mode == "sat"){
+                App.map.removeLayer(App.layers.map).addLayer(App.layers.sat);
             }
 
-            App.currentArticle = feature;
         },
 
         setup: function(){
@@ -306,16 +314,33 @@ var App = (function() {
                     {lookup:ajaxLookup}
                     );
 
+            $("#bg-map").click(function(){ App.setMapBackground("map"); });
+            $("#bg-sat").click(function(){ App.setMapBackground("sat"); });
 
 
             $("#clear").click(App.clear);
             $("#random").click(App.randomArticle);
 
+
             $("#show-previous-articles").click(function(){
                 App.settings.showPreviousArticles = !App.settings.showPreviousArticles;
+                if (App.settings.showPreviousArticles){
+                    App.map.addLayer(App.layers.articles);
+                    App.map.addLayer(App.layers.lines);
+                } else {
+                    App.map.removeLayer(App.layers.articles);
+                    App.map.removeLayer(App.layers.lines);
+                }
+
             });
             $("#show-linked-lines").click(function(){
                 App.settings.showLinkedLines = !App.settings.showLinkedLines;
+                if (App.settings.showLinkedLines){
+                    App.map.addLayer(App.layers.linkedLines);
+                } else {
+                    App.map.removeLayer(App.layers.linkedLines);
+                }
+
             });
 
 
@@ -336,16 +361,18 @@ var App = (function() {
             this.map = new L.Map('map');
 
             // MapQuest OpenStreetMap base map
-            var osmUrl = "http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png";
+            var mapUrl = "http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png";
+            var satUrl = "http://oatile{s}.mqcdn.com/tiles/1.0.0/sat/{z}/{x}/{y}.png";
             var osmAttribution = 'Map data &copy; 2011 OpenStreetMap contributors, Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">';
-            var osm = new L.TileLayer(osmUrl, {maxZoom: 18, attribution: osmAttribution ,subdomains: '1234'});
-            this.map.addLayer(osm);
+            this.layers.map = new L.TileLayer(mapUrl, {maxZoom: 18, attribution: osmAttribution ,subdomains: '1234'});
+            this.layers.sat = new L.TileLayer(satUrl, {maxZoom: 18, attribution: osmAttribution ,subdomains: '1234'});
+            this.map.addLayer(this.layers.map);
 
-            this.lines = new L.MultiPolyline([]);
-            this.map.addLayer(this.lines);
+            this.layers.lines = new L.MultiPolyline([]);
+            this.map.addLayer(this.layers.lines);
 
-            this.linkedLines = new L.MultiPolyline([]);
-            this.map.addLayer(this.linkedLines);
+            this.layers.linkedLines = new L.MultiPolyline([]);
+            this.map.addLayer(this.layers.linkedLines);
 
 
             var articlesIcon = L.Icon.extend({
@@ -357,16 +384,13 @@ var App = (function() {
                 popupAnchor: new L.Point(0, 0)
             });
 
-            this.articles = new L.GeoJSON(null,{
-                pointToLayer: function (latlng) {
+            var articlesPointToLayer = function (latlng) {
                     return new L.Marker(latlng, {
                         icon: new articlesIcon()
                     });
+            };
 
-                }
-            });
-
-            this.articles.on('featureparse', function(e) {
+            var articlesFeatureParse = function(e) {
                 if (e.properties){
                    (function(properties) {
                         var popup = new L.Popup({offset: new L.Point(0,-4)});
@@ -377,14 +401,19 @@ var App = (function() {
                             App.map.closePopup();
                             App.map.openPopup(popup);
                         });
-
                    })(e.properties);
+                }
+            };
 
-               }
-            });
+            this.layers.articles = new L.GeoJSON(null,{ pointToLayer: articlesPointToLayer});
+            this.layers.articles.on("featureparse", articlesFeatureParse);
 
+            this.map.addLayer(this.layers.articles);
 
-            this.map.addLayer(this.articles);
+            this.layers.currentArticle = new L.GeoJSON(null,{ pointToLayer: articlesPointToLayer});
+            this.layers.currentArticle.on("featureparse", articlesFeatureParse);
+
+            this.map.addLayer(this.layers.currentArticle);
 
             var linkedArticlesMarkerOptions = {
                 radius: 5,
@@ -394,12 +423,12 @@ var App = (function() {
                 fillOpacity: 1
             };
 
-            this.linkedArticles = new L.GeoJSON(null,{
+            this.layers.linkedArticles = new L.GeoJSON(null,{
                 pointToLayer: function (latlng) {
                     return new L.CircleMarker(latlng, linkedArticlesMarkerOptions);
                 }
             });
-            this.linkedArticles.on('featureparse', function(e) {
+            this.layers.linkedArticles.on("featureparse", function(e) {
                 if (e.properties){
                    var id = e.id;
                    (function(properties) {
@@ -428,7 +457,7 @@ var App = (function() {
             });
 
 
-            this.map.addLayer(this.linkedArticles);
+            this.map.addLayer(this.layers.linkedArticles);
 
             var pointQuery = new L.Handler.CtrlClickQuery(this.map);
             pointQuery.enable()
