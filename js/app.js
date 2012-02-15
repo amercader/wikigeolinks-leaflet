@@ -33,6 +33,8 @@ var App = (function() {
     var serviceURL = 'http://localhost:5000/articles';
     var proxyURL = '';
 
+    var bingKey = "AjtIygmd5pYzN3AaY3l_wLlbM2rW5CxbFaLzjxksZptvovvMVAKFwmJ_NDSVcfQu";
+
 
     var formatLink = function(string){
         return encodeURIComponent(string.replace(" ","_","g"));
@@ -226,7 +228,7 @@ var App = (function() {
             App.map.closePopup();
 
             App.currentFeature = null;
-            
+
             $("#search").val("");
         },
 
@@ -303,7 +305,7 @@ var App = (function() {
             } else if (mode == "sat"){
                 App.map.removeLayer(App.layers.map).addLayer(App.layers.sat);
             }
-
+            $("#bing-attribution").toggle();
         },
 
         setup: function(){
@@ -362,10 +364,12 @@ var App = (function() {
 
             // MapQuest OpenStreetMap base map
             var mapUrl = "http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png";
-            var satUrl = "http://oatile{s}.mqcdn.com/tiles/1.0.0/sat/{z}/{x}/{y}.png";
             var osmAttribution = 'Map data &copy; 2011 OpenStreetMap contributors, Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">';
             this.layers.map = new L.TileLayer(mapUrl, {maxZoom: 18, attribution: osmAttribution ,subdomains: '1234'});
-            this.layers.sat = new L.TileLayer(satUrl, {maxZoom: 18, attribution: osmAttribution ,subdomains: '1234'});
+
+            // Bing Aerial base layer
+            this.layers.sat = new L.TileLayer.Bing(bingKey,"Aerial");
+
             this.map.addLayer(this.layers.map);
 
             this.layers.lines = new L.MultiPolyline([]);
