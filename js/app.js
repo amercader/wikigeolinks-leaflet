@@ -346,9 +346,14 @@ var App = (function() {
             });
 
 
-            // Set map div size
-            $("#map").width($(window).width());
-            $("#map").height($(window).height() - 40); // minus the nav bar 40px
+            var onResize = function(){
+                // Set map div height
+                var correction =  ($(window).width() >= 980) ? 40 : 50;
+                $("#map").height($(window).height() - correction); // minus the nav bar
+            };
+
+            onResize();
+            $(window).resize(onResize);
 
             // Leaflet setup
             this.setupMap();

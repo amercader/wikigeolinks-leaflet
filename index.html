@@ -5,37 +5,39 @@
           <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
         <![endif]-->
 
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="css/bootstrap.css" />
         <link rel="stylesheet" href="css/bootstrap-responsive.css"  />
         <link rel="stylesheet" href="js/leaflet/dist/leaflet.css" />
         <!--[if lte IE 8]><link rel="stylesheet" href="js/leaflet/dist/leaflet.ie.css" /><![endif]-->
 
-
         <link rel="stylesheet" href="css/app.css" />
     </head>
     <body>
-
         <div id="toolbar" class="navbar navbar-fixed-top">
             <div class="navbar-inner">
                 <div class="container">
+                    <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </a>
                     <a class="brand" href=".">WikiGeoLinks</a>
-
                     <div class="nav-collapse">
-                        <div class="btn-group" data-toggle="buttons-radio">
-                            <a id="bg-map" class="btn active"><i class="icon-map"></i> Map</a>
-                            <a id="bg-sat" class="btn"><i class="icon-sat"></i> Satellite</a>
-                        </div>
-                        <div class="divider-vertical pull-left"></div>
-                        <div class="pull-left">
+
+                        <div class="pull-left nav">
+                            <div class="btn-group" data-toggle="buttons-radio">
+                                <a id="bg-map" class="btn active"><i class="icon-map"></i> Map</a>
+                                <a id="bg-sat" class="btn"><i class="icon-sat"></i> Satellite</a>
+                            </div>
+                            <div class="divider-vertical pull-left"></div>
                             <a href="#clear" id="clear" class="btn btn-small"><i class="icon-remove"></i> Clear</a>
                             <a href="#random" id="random" class="btn btn-small"><i class="icon-random"></i> Random</a>
                         </div>
-
                         <form class="navbar-search pull-left">
-                            <input type="text" class="search-query" placeholder="Search georreferenced articles" id="search" data-provide="typeahead" />
+                            <input type="text" class="search-query span3" placeholder="Search georreferenced articles" id="search" data-provide="typeahead" />
                             <div id="search-results" class="results" style="display:none"></div>
                         </form>
-
                         <ul class="nav pull-right">
                             <li><a href="#">About</a></li>
                             <li class="divider-vertical"></li>
@@ -53,12 +55,10 @@
                                 </ul>
                             </li>
                         </ul>
-
                     </div>
                 </div>
             </div>
         </div>
-
         <div id="map"></div>
         <div id="bing-attribution">
             <a target="_blank" href="http://www.bing.com/maps/"><img src="http://dev.virtualearth.net/Branding/logo_powered_by.png" alt="Bing Maps"/></a>

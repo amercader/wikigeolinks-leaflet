@@ -14,12 +14,16 @@ img {
     max-width: none;
 }
 
-#map{
-    top: 40px;
+@media (max-width:980px) {
+    .btn-group{
+        margin: 0 10px;
+    }
 }
 
-#search {
-    width: 250px;
+@media (min-width:980px) {
+    #map{
+        top: 40px;
+    }
 }
 
 .results {
@@ -60,6 +64,10 @@ img {
 }
 
 /* Bootstrap overrides */
+
+.navbar{
+    margin-bottom: 0 !important;
+}
 
 .navbar .btn-small{
     margin-right: 10px;
