@@ -76,75 +76,119 @@ L.Ellipse = L.Circle.extend({
 
 
 var App = (function() {
-    //
+
+    // conf options
+    var serviceURL = 'http://localhost:5000/articles';
+    var proxyURL = '';
+
+    var bingKey = "AjtIygmd5pYzN3AaY3l_wLlbM2rW5CxbFaLzjxksZptvovvMVAKFwmJ_NDSVcfQu";
+
+
     var formatLink = function(string){
         return encodeURIComponent(string.replace(" ","_","g"));
     }
 
-
     var getPopupContent = function(properties){
-        return '<img src="img/icon_wiki.png" alt="Wikipedia article" />' +
-               '<a href="http://en.wikipedia.org/wiki/' + formatLink(properties.title) +
-               '" target="_blank" title="Wikipedia article for "' + properties.title + '">'
-               + properties.title + '</a>'
+        return '<div class="popup-article-content">' +
+                   '<a href="http://en.wikipedia.org/wiki/' + formatLink(properties.title) +
+                   '" target="_blank" title="Wikipedia article for ' + properties.title + '">' +
+                   properties.title + '</a>' +
+                   '<div class="links-count">' + properties.links_count + ' linked articles</div>' +
+               '</div>';
+
 
     }
 
+    // Custom lookup function for Bootstrap typeahead
+    var ajaxLookup = function (event) {
+
+        var that = this;
+
+        this.query = this.$element.val()
+
+        if (!this.query || this.query.length < 3) {
+            return this.shown ? this.hide() : this
+        }
+
+        var offset = "";
+        var params = {
+            title__ilike: "%" + this.query + "%",
+            attrs:"id,title,links_count",
+            queryable:"title",
+            order_by:"links_count",
+            dir:"desc",
+            limit:"12"
+        };
+
+        $.get(App.getURL(offset,params),function(data){
+            var items = [];
+            for (var i = 0; i < data.features.length; i++){
+                title = data.features[i].properties.title;
+                result = title + " (" + data.features[i].properties.links_count + ")";
+                items.push(result);
+            }
+            if (!items.length) {
+                return that.shown ? that.hide() : that
+            }
+            that.render(items.slice(0, that.options.items))
+
+            that.$menu.find("li").map(function(i,element){
+                $(element).click({"feature": data.features[i]},function(e){
+                            App.clear();
+                            App.addArticle(e.data.feature);
+                            App.getLinkedArticles(e.data.feature.id);
+
+                });
+            })
+            that.show()
+        });
+    }
+
     return {
+
+        settings: {
+            showPreviousArticles: true,
+            showLinkedLines: true
+        },
+
         map: null,
 
-        articles: null,
+        layers: {
+            map: null,
+            sat: null,
+            currentArticle: null,
+            articles: null,
+            lines: null,
+            linkedArticles: null,
+            linkedLines: null
+        },
 
-        lines: null,
+        currentFeature: null,
 
-        linkedArticles: null,
+        getURL:function(offset,params){
+            if (!serviceURL)
+                return False;
 
-        linkedLines: null,
+            var url = serviceURL;
 
-        currentArticle: null,
+            if (offset && !(url.substring(url.length-1,url.length) == '/'))
+                url += '/';
 
-        search: function(text){
-            if (text.length > 3){
-                var url = 'http://127.0.0.1:5000/articles';
-                url += "?title__ilike=%" + text + "%";
-                url += "&attrs=id,title,links_count";
-                url += "&queryable=title";
-                url += "&order_by=links_count";
-                url += "&dir=desc";
-                url += "&limit=30";
-                url = "proxy.php?url="+escape(url);
+            if (offset)
+                url += offset;
 
-                $.get(url,function(data){
+            if (params)
+                url += '?' + $.param(params);
 
-                    var resultsDiv = $("#search-results");
-                    if (data && data.features.length){
-                        resultsDiv.empty().show();
-                        var div, title, result;
-                        var re = new RegExp(text,"gi");
-                        for (var i = 0; i < data.features.length; i++){
-                            title = data.features[i].properties.title;
-                            result = title.replace(re, function(m){
-                                        return "<strong>" + m + "</strong>"
-                                     }) + " (" + data.features[i].properties.links_count + ")";
+            if (proxyURL)
+                url = proxyURL + escape(url);
 
-                            div = $("<div></div>").append(result);
-                            div.click({"feature": data.features[i]},function(e){
-                                $("#search").val($(this).text());
-                                resultsDiv.empty().hide();
-                                App.clear();
-                                App.addArticle(e.data.feature);
-                                App.getLinkedArticles(e.data.feature.id);
-                            });
-                            resultsDiv.append(div);
-                        }
-                    } else {
-                        resultsDiv.append("No results found");
-                    }
-                });
-            }
+            return url;
         },
 
         searchByLatLng: function(lat,lng){
+
+            $("#map").css("cursor", "wait");
 
             var zoom = App.map.getZoom() || 1;
 			var scale = App.map.options.scale();
@@ -157,21 +201,20 @@ var App = (function() {
 
             console.log(tolerance);
 
-            var url = 'http://127.0.0.1:5000/articles';
-            url += "?lat=" + lat;
-            url += "&lon=" + lng;
-            url += "&tolerance=" + tolerance;
-            url += "&attrs=id,title,links_count";
-            url += "&order_by=links_count";
-            url += "&dir=desc";
-            url += "&limit=30";
-            url = "proxy.php?url="+escape(url);
+            var offset = "";
+            var params = {
+                lat: lat,
+                lon: lng,
+                tolerance: tolerance,
+                attrs:"id,title,links_count",
+                order_by:"links_count",
+                dir:"desc",
+                limit:"30"
+            };
 
-            $("#map").css("cursor", "wait");
+            $.get(this.getURL(offset,params),function(data){
 
-            $.get(url,function(data){
-
-                App.searchResults.clearLayers();
+                App.layers.searchResults.clearLayers();
                 var circle = new L.Ellipse(
                         new L.LatLng(lat,lng),
                         radius,
@@ -182,7 +225,7 @@ var App = (function() {
                     App.map.openPopup(popup);
                 });
 
-                App.searchResults.addLayer(circle);
+                App.layers.searchResults.addLayer(circle);
 
                 var resultsDiv = $("<div></div>");
                 resultsDiv.addClass("results");
@@ -223,7 +266,7 @@ var App = (function() {
 
                         resultsDiv.append(div);
 
-                        App.searchResults.addLayer(leafletLayer);
+                        App.layers.searchResults.addLayer(leafletLayer);
 
                     }
 
@@ -238,7 +281,7 @@ var App = (function() {
 
 
                 /*
-                App.searchResults.addLayer(
+                App.layers.searchResults.addLayer(
                     new L.GeoJSON(data,{
                         pointToLayer: function (latlng){
                             return new L.CircleMarker(latlng, {
@@ -260,13 +303,23 @@ var App = (function() {
 
         },
 
-        getArticle: function(id){
-            var url = 'http://127.0.0.1:5000/articles/' + id + '.json';
-            url = "proxy.php?url="+escape(url);
-            $.getJSON(url,function(data){
+        getArticle: function(id,random){
+
+            var offset = id + '.json';
+
+            $.getJSON(this.getURL(offset),function(data){
                 if (data){
-                    App.addArticle(data);
-                    App.getLinkedArticles(id);
+                    if (data.properties.links_count == 0){
+                        if (random){
+                            // Keep looking for an article with links
+                            App.randomArticle();
+                        } else {
+                            alert('Sorry, no links for this article');
+                        }
+                    } else {
+                        App.addArticle(data);
+                        App.getLinkedArticles(id);
+                    }
                 } else {
                     alert('No data received');
                 }
@@ -276,40 +329,62 @@ var App = (function() {
         },
 
         clear: function(){
-            App.articles.clearLayers();
-            App.lines.clearLayers();
-            App.linkedArticles.clearLayers();
-            App.linkedLines.clearLayers();
-            App.searchResults.clearLayers();
 
+            App.layers.currentArticle.clearLayers();
+            App.layers.articles.clearLayers();
+            App.layers.lines.clearLayers();
+            App.layers.linkedArticles.clearLayers();
+            App.layers.linkedLines.clearLayers();
+
+            App.layers.searchResults.clearLayers();
+            
             App.map.closePopup();
 
-            App.currentArticle = null;
+            App.currentFeature = null;
 
+            $("#search").val("");
+        },
+
+        randomArticle: function(){
+            App.clear();
+            var id = Math.round(365000 - 365000 * Math.random());
+            App.getArticle(id,true);
         },
 
         getLinkedArticles: function(id){
-            var url = 'http://127.0.0.1:5000/articles/' + id + '/linked';
-            url = "proxy.php?url="+escape(url);
-            $.getJSON(url,function(data){
+            var offset = id + '/linked';
 
-                App.linkedArticles.clearLayers();
-                App.linkedArticles.addGeoJSON(data);
+            $.getJSON(this.getURL(offset),function(data){
+                if (!data || data.length == 0){
+                    alert("Sorry, no links for this article");
+                    return;
+                }
 
-                App.linkedLines.clearLayers();
 
                 var bounds = new L.LatLngBounds();
 
+                // Rebuild lines first so they appear under the markers
+                App.layers.linkedLines.clearLayers();
+
                 for (var i = 0; i < data.features.length; i++){
                     var feature = data.features[i];
-                    var line = new L.Polyline([ new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]),
-                                            new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
-                    App.linkedLines.addLayer(line);
+
+                    var line = new L.Polyline([
+                                    new L.LatLng(App.currentFeature.geometry.coordinates[1],App.currentFeature.geometry.coordinates[0]),
+                                    new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
+                    App.layers.linkedLines.addLayer(line);
 
                     // Hack: linkedArticles does not have a getBounds method!
                     bounds.extend(new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0]));
                 }
-                App.linkedLines.setStyle({weight:2, color: "gray",clickable: false});
+
+                App.layers.linkedLines.setStyle({weight:2, color: "gray",clickable: false});
+
+                App.layers.linkedArticles.clearLayers();
+                App.layers.linkedArticles.addGeoJSON(data);
+
+                // Make sure current article is shown in the bounds
+                bounds.extend(new L.LatLng(App.currentFeature.geometry.coordinates[1],App.currentFeature.geometry.coordinates[0]));
 
                 App.map.fitBounds(bounds);
             });
@@ -317,29 +392,72 @@ var App = (function() {
         },
 
         addArticle: function(feature){
-            // Add feature to articles layer
-            App.articles.addGeoJSON(feature);
 
+            if (App.currentFeature){
 
-            // Add line
-            if (App.currentArticle){
-                var line = new L.Polyline([ new L.LatLng(App.currentArticle.geometry.coordinates[1],App.currentArticle.geometry.coordinates[0]),
+                // Add previous feature to articles layer
+                App.layers.articles.addGeoJSON(App.currentFeature);
+
+                // Add line
+                var line = new L.Polyline([ new L.LatLng(App.currentFeature.geometry.coordinates[1],App.currentFeature.geometry.coordinates[0]),
                                         new L.LatLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0])]);
-                App.lines.addLayer(line);
-                App.lines.setStyle({weight:4, color: "red",clickable: false});
+                App.layers.lines.addLayer(line);
+                App.layers.lines.setStyle({weight:4, color: "red",clickable: false});
             }
-            App.currentArticle = feature;
+            // Add new feature to the current article layer
+            App.layers.currentArticle.clearLayers();
+            App.layers.currentArticle.addGeoJSON(feature);
+
+            App.currentFeature = feature;
+        },
+
+        setMapBackground: function(mode){
+            mode = mode || "map";
+            if (mode == "map"){
+                App.map.removeLayer(App.layers.sat).addLayer(App.layers.map);
+            } else if (mode == "sat"){
+                App.map.removeLayer(App.layers.map).addLayer(App.layers.sat);
+            }
+            $("#bing-attribution").toggle();
         },
 
         tolerance: 0.5,
 
         setup: function(){
-            // Setup events
-            $("#search").keyup(function(e){
-                App.search(e.target.value);
-            });
+
+            // Use our custom lookup function for the search field typeahead
+            $.extend(
+                    $('#search').typeahead({items:12}).data('typeahead'),
+                    {lookup:ajaxLookup}
+                    );
+
+            $("#bg-map").click(function(){ App.setMapBackground("map"); });
+            $("#bg-sat").click(function(){ App.setMapBackground("sat"); });
+
 
             $("#clear").click(App.clear);
+            $("#random").click(App.randomArticle);
+
+
+            $("#show-previous-articles").click(function(){
+                App.settings.showPreviousArticles = !App.settings.showPreviousArticles;
+                if (App.settings.showPreviousArticles){
+                    App.map.addLayer(App.layers.articles);
+                    App.map.addLayer(App.layers.lines);
+                } else {
+                    App.map.removeLayer(App.layers.articles);
+                    App.map.removeLayer(App.layers.lines);
+                }
+
+            });
+            $("#show-linked-lines").click(function(){
+                App.settings.showLinkedLines = !App.settings.showLinkedLines;
+                if (App.settings.showLinkedLines){
+                    App.map.addLayer(App.layers.linkedLines);
+                } else {
+                    App.map.removeLayer(App.layers.linkedLines);
+                }
+            });
 
             // UI widgets
             $("#tolerance").slider({
@@ -351,47 +469,65 @@ var App = (function() {
             });
 
 
-            // Set map div size
-            $("#map").width($(window).width());
-            $("#map").height($(window).height());
+            var onResize = function(){
+                // Set map div height
+                var correction =  ($(window).width() >= 980) ? 40 : 50;
+                $("#map").height($(window).height() - correction); // minus the nav bar
+            };
+
+            onResize();
+            $(window).resize(onResize);
+
+            // Leaflet setup
+            this.setupMap();
+
+
+            this.getArticle('31862');
+
+       },
+
+        setupMap: function(){
 
             this.map = new L.Map('map');
 
             // MapQuest OpenStreetMap base map
-            var osmUrl = "http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png";
+            var mapUrl = "http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png";
             var osmAttribution = 'Map data &copy; 2011 OpenStreetMap contributors, Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">';
-            var osm = new L.TileLayer(osmUrl, {maxZoom: 18, attribution: osmAttribution ,subdomains: '1234'});
-            this.map.addLayer(osm);
+            this.layers.map = new L.TileLayer(mapUrl, {maxZoom: 18, attribution: osmAttribution ,subdomains: '1234'});
 
-            this.lines = new L.MultiPolyline([]);
-            this.map.addLayer(this.lines);
+            // Bing Aerial base layer
+            this.layers.sat = new L.TileLayer.Bing(bingKey,"Aerial");
 
-            this.linkedLines = new L.MultiPolyline([]);
-            this.map.addLayer(this.linkedLines);
+            this.map.addLayer(this.layers.map);
 
-            this.searchResults = new L.LayerGroup([]);
-            this.map.addLayer(this.searchResults);
+            this.layers.lines = new L.MultiPolyline([]);
+            this.map.addLayer(this.layers.lines);
+
+            this.layers.linkedLines = new L.MultiPolyline([]);
+            this.map.addLayer(this.layers.linkedLines);
+
+            this.layers.searchResults = new L.LayerGroup([]);
+            this.map.addLayer(this.layers.searchResults);
 
             var articlesIcon = L.Icon.extend({
                 iconUrl: 'img/icon_wiki.png',
+                shadowUrl: 'img/icon_wiki_shadow.png',
                 iconSize: new L.Point(20, 20),
+                shadowSize: new L.Point(27, 27),
                 iconAnchor: new L.Point(10, 10),
                 popupAnchor: new L.Point(0, 0)
             });
 
-            this.articles = new L.GeoJSON(null,{
-                pointToLayer: function (latlng) {
+            var articlesPointToLayer = function (latlng) {
                     return new L.Marker(latlng, {
                         icon: new articlesIcon()
                     });
+            };
 
-                }
-            });
-
-            this.articles.on('featureparse', function(e) {
+            var articlesFeatureParse = function(e) {
                 if (e.properties){
                    (function(properties) {
-                        var popup = new L.Popup();
+                        var popup = new L.Popup({offset: new L.Point(0,-4)});
                         popup.setLatLng(e.layer.getLatLng());
                         popup.setContent(getPopupContent(properties));
 
@@ -399,35 +535,40 @@ var App = (function() {
                             App.map.closePopup();
                             App.map.openPopup(popup);
                         });
-
                    })(e.properties);
+                }
+            };
 
-               }
-            });
+            this.layers.articles = new L.GeoJSON(null,{ pointToLayer: articlesPointToLayer});
+            this.layers.articles.on("featureparse", articlesFeatureParse);
 
+            this.map.addLayer(this.layers.articles);
 
-            this.map.addLayer(this.articles);
+            this.layers.currentArticle = new L.GeoJSON(null,{ pointToLayer: articlesPointToLayer});
+            this.layers.currentArticle.on("featureparse", articlesFeatureParse);
+
+            this.map.addLayer(this.layers.currentArticle);
 
             var linkedArticlesMarkerOptions = {
-                radius: 4,
-                color: "#000",
-                weight: 1,
+                radius: 5,
+                color: "gray",
+                weight: 2,
                 opacity: 1,
                 fillOpacity: 1
             };
 
-            this.linkedArticles = new L.GeoJSON(null,{
+            this.layers.linkedArticles = new L.GeoJSON(null,{
                 pointToLayer: function (latlng) {
                     return new L.CircleMarker(latlng, linkedArticlesMarkerOptions);
                 }
             });
-            this.linkedArticles.on('featureparse', function(e) {
+            this.layers.linkedArticles.on("featureparse", function(e) {
                 if (e.properties){
                    var id = e.id;
                    (function(properties) {
-                        var color = (properties.links_count != 0) ? "#00FF00" :"#FF0000";
+                        var color = (properties.links_count != 0) ? "#82E058" :"#E84D4D";
                         e.layer.setStyle({fillColor: color});
-                        var popup = new L.Popup();
+                        var popup = new L.Popup({offset: new L.Point(0,-4)});
                         // Hack: When using CircleMarker there is no way to get the coordinates
                         // of the added geometry (e.layer.getLatLng() does not work), so we use
                         // the bbox
@@ -450,14 +591,13 @@ var App = (function() {
             });
 
 
-            this.map.addLayer(this.linkedArticles);
+            this.map.addLayer(this.layers.linkedArticles);
 
             var pointQuery = new L.Handler.CtrlClickQuery(this.map);
             pointQuery.enable()
 
             this.map.setView(new L.LatLng(0, 0), 1);
 
-            this.getArticle('31862');
         }
     }
 })()

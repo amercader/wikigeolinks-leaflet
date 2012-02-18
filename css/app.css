@@ -1,13 +1,29 @@
 body{
-    margin: 0px; 
+    margin: 0px;
     padding: 0px;
+    font-family: helvetica, arial, sans-serif;
+
 }
 
-#map{
+/*
+ * Bootstrap sets img max-width to 100%, which prevents Leaflet
+ * from showing the tiles correctly on Firefox 10.
+ * This has been fixed in 61d7468
+ */
+img {
+    max-width: none;
 }
 
-#search {
-    width: 250px;
+@media (max-width:980px) {
+    .btn-group{
+        margin: 0 10px;
+    }
+}
+
+@media (min-width:980px) {
+    #map{
+        top: 40px;
+    }
 }
 
 .results {
@@ -30,4 +46,88 @@ body{
 .ui-slider .ui-slider-handle{
     width: 0.8em;   
     height: 0.8em;
+}
+
+.results .no-results{
+    font-style: italic;
+}
+
+.popup-article-content{
+    min-width: 100px;
+    min-height: 20px;
+    background: white url('../img/icon_wiki_bg.png') no-repeat top left;
+    padding-top: 4px;
+    padding-left: 30px;
+}
+
+.popup-article-content .links-count{
+    margin-top: 3px;
+    font-size: x-small;
+}
+
+
+#bing-attribution {
+    position:absolute;
+    margin-top: 5px;
+    z-index: 100;
+    display: none;
+}
+
+/* Bootstrap overrides */
+
+.navbar{
+    margin-bottom: 0 !important;
+}
+
+.navbar .btn-small{
+    margin-right: 10px;
+}
+
+.icon-random {
+    width: 15px;
+    height: 15px;
+}
+
+.icon-map {
+    background-image: url('../img/icon_bg_map.png');
+    background-position: 0 0;
+}
+
+.icon-sat {
+    background-image: url('../img/icon_bg_sat.png');
+    background-position: 0 0;
+}
+
+.btn-group {
+    width: auto;
+    float:left;
+}
+
+.dropdown-menu {
+    min-width: 220px;
+    max-width: 250px;
+}
+
+.dropdown-menu li{
+    clear: both;
+}
+
+.dropdown-menu input{
+    float:left;
+    margin-left: 15px;
+    margin-top: 3px;
+}
+
+.dropdown-menu label{
+    float:left;
+    margin-right: 15px;
+    margin-left: 5px;
+    margin-top: 3px;
+    color: #555;
+}
+
+.typeahead{
+    z-index: 2000;
+    max-width: none;
+    margin-left: 10px;
 }
