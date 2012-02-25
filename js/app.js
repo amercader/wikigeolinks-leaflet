@@ -19,9 +19,9 @@ L.Handler.CtrlClickQuery = L.Handler.extend({
 	_onMouseUp: function(e) {
 
 		if (!e.ctrlKey) { return false; }
-        var latlng = this._map.mouseEventToLatLng(e);
+        var latLng = this._map.mouseEventToLatLng(e);
 
-        App.searchByLatLng(latlng.lat,latlng.lng);
+        App.searchByLatLng(latLng);
 
 	}
 });
@@ -95,8 +95,21 @@ var App = (function() {
                    properties.title + '</a>' +
                    '<div class="links-count">' + properties.links_count + ' linked articles</div>' +
                '</div>';
+    }
 
 
+    var getSearchTolerance = function(latLng){
+
+        // Calculate a tolerance in degrees based on the map scale
+        // Formula from http://msdn.microsoft.com/en-us/library/bb259689.aspx
+        var zoom = App.map.getZoom()
+        var mapScale = (Math.cos(latLng.lat*Math.PI/180)*2*Math.PI*6378137*96)/(256*Math.pow(2,zoom)*0.0254);
+        var tolerance = mapScale / 111319 / 200;
+
+        // Adjust with the user setting
+        tolerance += tolerance * App.settings.tolerance/100;
+
+        return tolerance;
     }
 
     // Custom lookup function for Bootstrap typeahead
@@ -148,7 +161,8 @@ var App = (function() {
 
         settings: {
             showPreviousArticles: true,
-            showLinkedLines: true
+            showLinkedLines: true,
+            tolerance: 0
         },
 
         map: null,
@@ -160,7 +174,8 @@ var App = (function() {
             articles: null,
             lines: null,
             linkedArticles: null,
-            linkedLines: null
+            linkedLines: null,
+            searchResults: null
         },
 
         currentFeature: null,
@@ -186,25 +201,24 @@ var App = (function() {
             return url;
         },
 
-        searchByLatLng: function(lat,lng){
+        searchByLatLng: function(latLng){
 
             $("#map").css("cursor", "wait");
 
-            var zoom = App.map.getZoom() || 1;
-			var scale = App.map.options.scale();
-            var tolerance = (1 / zoom) * App.tolerance;
-            var radius = tolerance / 0.00001;
-            var dpm = 111319.9;
-            var radius = 100000;
+            var tolerance = getSearchTolerance(latLng);
 
-            var tolerance = radius / dpm;
+            var centerPoint = L.Projection.Mercator.project(latLng);
+            var pointX = L.Projection.Mercator.project(new L.LatLng(latLng.lat ,latLng.lng + tolerance));
+            var pointY = L.Projection.Mercator.project(new L.LatLng(latLng.lat + tolerance,latLng.lng));
 
-            console.log(tolerance);
+            var radiusX = Math.abs(centerPoint.x - pointX.x);
+            var radiusY = Math.abs(centerPoint.y - pointY.y);
+
 
             var offset = "";
             var params = {
-                lat: lat,
-                lon: lng,
+                lat: latLng.lat,
+                lon: latLng.lng,
                 tolerance: tolerance,
                 attrs:"id,title,links_count",
                 order_by:"links_count",
@@ -216,19 +230,18 @@ var App = (function() {
 
                 App.layers.searchResults.clearLayers();
                 var circle = new L.Ellipse(
-                        new L.LatLng(lat,lng),
-                        radius,
-                        2*radius,
+                        latLng,
+                        radiusX,
+                        radiusY,
                         {color:"red"}
-                );
-                circle.on("click",function(){
-                    App.map.openPopup(popup);
-                });
+                    ).on("click",function(){
+                        App.map.openPopup(popup);
+                    });
 
                 App.layers.searchResults.addLayer(circle);
 
-                var resultsDiv = $("<div></div>");
-                resultsDiv.addClass("results");
+                var resultsDiv = $("<div></div>").addClass("results");
+
                 if (data && data.features.length){
                     var div, title, results, leafletLayer;
                     for (var i = 0; i < data.features.length; i++){
@@ -245,24 +258,24 @@ var App = (function() {
                                     }
                                  );
 
-
                         title = data.features[i].properties.title;
 
                         result = title + " (" + data.features[i].properties.links_count + ")";
 
-                        div = $("<div></div>").append(result);
-                        div.click({"feature": data.features[i]},function(e){
-                            App.map.closePopup();
-                            App.clear();
-                            App.addArticle(e.data.feature);
-                            App.getLinkedArticles(e.data.feature.id);
-                        });
-                        div.mouseover({"layer": leafletLayer},function(e){
-                            e.data.layer.setStyle({fillColor: "yellow"});
-                        });
-                        div.mouseout({"layer": leafletLayer},function(e){
-                            e.data.layer.setStyle({fillColor: "gray"});
-                        });
+                        div = $("<div></div>")
+                            .append(result)
+                            .click({"feature": data.features[i]},function(e){
+                                App.map.closePopup();
+                                App.clear();
+                                App.addArticle(e.data.feature);
+                                App.getLinkedArticles(e.data.feature.id);
+                                })
+                            .mouseover({"layer": leafletLayer},function(e){
+                                e.data.layer.setStyle({fillColor: "yellow"});
+                                })
+                            .mouseout({"layer": leafletLayer},function(e){
+                                e.data.layer.setStyle({fillColor: "gray"});
+                                });
 
                         resultsDiv.append(div);
 
@@ -275,28 +288,12 @@ var App = (function() {
                 }
 
                 var popup = new L.Popup();
-                popup.setLatLng(new L.LatLng(lat+tolerance,lng));
+                popup.setLatLng(new L.LatLng(latLng.lat+tolerance,latLng.lng));
                 // We need the actual DOM object
                 popup.setContent(resultsDiv.get(0));
 
-
-                /*
-                App.layers.searchResults.addLayer(
-                    new L.GeoJSON(data,{
-                        pointToLayer: function (latlng){
-                            return new L.CircleMarker(latlng, {
-                                radius: 3,
-                                fillColor: "gray",
-                                color: "#000",
-                                weight: 1,
-                                opacity: 1,
-                                fillOpacity: 0.8
-                                })
-                            }
-                         })
-                    );
-                */
                 App.map.openPopup(popup);
+
                 $("#map").css("cursor", "default");
 
             });
@@ -337,7 +334,7 @@ var App = (function() {
             App.layers.linkedLines.clearLayers();
 
             App.layers.searchResults.clearLayers();
-            
+
             App.map.closePopup();
 
             App.currentFeature = null;
@@ -421,8 +418,6 @@ var App = (function() {
             $("#bing-attribution").toggle();
         },
 
-        tolerance: 0.5,
-
         setup: function(){
 
             // Use our custom lookup function for the search field typeahead
@@ -461,10 +456,11 @@ var App = (function() {
 
             // UI widgets
             $("#tolerance").slider({
-                min: 1,
-                max: 100,
+                min: -50,
+                max: 50,
+                value: 0,
                 slide: function(e,ui){
-                    App.tolerance = ui.value;
+                    App.settings.tolerance = ui.value;
                 }
             });
 
@@ -596,7 +592,7 @@ var App = (function() {
             var pointQuery = new L.Handler.CtrlClickQuery(this.map);
             pointQuery.enable()
 
-            this.map.setView(new L.LatLng(0, 0), 1);
+            this.map.setView(new L.LatLng(0, 0), 2);
 
         }
     }
