@@ -32,20 +32,37 @@ img {
     overflow: auto;
 }
 
-.results > div {
+.results > ul {
+    margin: 0;
+}
+
+.results li {
     cursor: pointer;
     background: white;
+    list-style: none;
+    line-height: 18px;
+    font-size: 13px;
+    padding: 2px 5px;
 }
+
+.results li:hover {
+    color: #ffffff;
+    text-decoration: none;
+    background-color: #0088cc;
+}
+
+
 
 /* jQuery UI overrides */
 
 .ui-slider-horizontal{
-    height: 0.4em;
+    height: 0.5em !important;
+    width: 188px;
 }
 
 .ui-slider .ui-slider-handle{
-    width: 0.8em;   
-    height: 0.8em;
+    width: 1em !important;
+    height: 1em !important;
 }
 
 .results .no-results{
@@ -126,8 +143,22 @@ img {
     color: #555;
 }
 
+.dropdown-menu .ui-slider-handle{
+    padding: 0 !important;
+
+}
+
 .typeahead{
     z-index: 2000;
     max-width: none;
     margin-left: 10px;
+}
+
+#tolerance-container{
+    margin: 0 15px;
+    color: #555;
+}
+
+#tolerance-container > div{
+    margin-bottom: 10px;
 }

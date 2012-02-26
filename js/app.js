@@ -226,7 +226,7 @@ var App = (function() {
                 limit:"30"
             };
 
-            $.get(this.getURL(offset,params),function(data){
+            $.getJSON(this.getURL(offset,params),function(data){
 
                 App.layers.searchResults.clearLayers();
                 var circle = new L.Ellipse(
@@ -240,10 +240,11 @@ var App = (function() {
 
                 App.layers.searchResults.addLayer(circle);
 
-                var resultsDiv = $("<div></div>").addClass("results");
+                var container = $("<div></div>").addClass("results");
+                var resultsUl = $("<ul></ul>");
 
-                if (data && data.features.length){
-                    var div, title, results, leafletLayer;
+                if (data && data.features && data.features.length){
+                    var li, title, results, leafletLayer;
                     for (var i = 0; i < data.features.length; i++){
 
                         leafletLayer = L.GeoJSON.geometryToLayer(data.features[i].geometry,function (latlng){
@@ -262,8 +263,9 @@ var App = (function() {
 
                         result = title + " (" + data.features[i].properties.links_count + ")";
 
-                        div = $("<div></div>")
+                        li = $("<li></li>")
                             .append(result)
+                            .attr("data-value",result)
                             .click({"feature": data.features[i]},function(e){
                                 App.map.closePopup();
                                 App.clear();
@@ -277,20 +279,21 @@ var App = (function() {
                                 e.data.layer.setStyle({fillColor: "gray"});
                                 });
 
-                        resultsDiv.append(div);
+                        resultsUl.append(li);
 
                         App.layers.searchResults.addLayer(leafletLayer);
 
                     }
 
+                    container.append(resultsUl);
                 } else {
-                    resultsDiv.append("No articles found near this point");
+                    container.append("No articles found near this point");
                 }
 
                 var popup = new L.Popup();
                 popup.setLatLng(new L.LatLng(latLng.lat+tolerance,latLng.lng));
                 // We need the actual DOM object
-                popup.setContent(resultsDiv.get(0));
+                popup.setContent(container.get(0));
 
                 App.map.openPopup(popup);
 
