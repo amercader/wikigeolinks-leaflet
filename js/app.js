@@ -19,11 +19,59 @@ L.Handler.CtrlClickQuery = L.Handler.extend({
 	_onMouseUp: function(e) {
 
 		if (!e.ctrlKey) { return false; }
-        var latlng = this._map.mouseEventToLatLng(e);
+        var latLng = this._map.mouseEventToLatLng(e);
 
-        App.searchByLatLng(latlng.lat,latlng.lng);
+        App.searchByLatLng(latLng);
 
 	}
+});
+
+
+
+L.Ellipse = L.Circle.extend({
+	initialize: function(latlng, radiusX, radiusY, options) {
+		L.Path.prototype.initialize.call(this, options);
+		
+		this._latlng = latlng;
+		this._mRadiusX = radiusX;
+		this._mRadiusY = radiusY;
+	},
+
+    setRadius: function(radiusX,radiusY) {
+		this._mRadiusX = radiusX;
+		this._mRadiusY = radiusY;
+
+        this._redraw();
+		return this;
+	},
+	
+	projectLatlngs: function() {
+		var equatorLength = 40075017,
+            meridianLength = 40007863,
+			scale = this._map.options.scale(this._map._zoom);
+		
+		this._point = this._map.latLngToLayerPoint(this._latlng);
+		this._radiusX = (this._mRadiusX / equatorLength) * scale;
+		this._radiusY = (this._mRadiusY / meridianLength) * scale;
+	},
+
+    getPathString: function() {
+		var p = this._point,
+			rx = this._radiusX,
+            ry = this._radiusY;	
+
+        if (L.Path.SVG) {
+			return "M" + p.x + "," + (p.y - ry) +
+					"A" + rx + "," + ry + ",0,1,1," +
+					(p.x - 0.1) + "," + (p.y - ry) + " z";
+		} else {
+			p._round();
+			rx = Math.round(rx);
+			ry = Math.round(ry);
+			return "AL " + p.x + "," + p.y + " " + rx + "," + ry + " 0," + (65535 * 360);
+		}
+	}
+
 });
 
 
@@ -47,8 +95,21 @@ var App = (function() {
                    properties.title + '</a>' +
                    '<div class="links-count">' + properties.links_count + ' linked articles</div>' +
                '</div>';
+    }
 
 
+    var getSearchTolerance = function(latLng){
+
+        // Calculate a tolerance in degrees based on the map scale
+        // Formula from http://msdn.microsoft.com/en-us/library/bb259689.aspx
+        var zoom = App.map.getZoom()
+        var mapScale = (Math.cos(latLng.lat*Math.PI/180)*2*Math.PI*6378137*96)/(256*Math.pow(2,zoom)*0.0254);
+        var tolerance = mapScale / 111319 / 200;
+
+        // Adjust with the user setting
+        tolerance += tolerance * App.settings.tolerance/100;
+
+        return tolerance;
     }
 
     // Custom lookup function for Bootstrap typeahead
@@ -100,7 +161,8 @@ var App = (function() {
 
         settings: {
             showPreviousArticles: true,
-            showLinkedLines: true
+            showLinkedLines: true,
+            tolerance: 0
         },
 
         map: null,
@@ -112,7 +174,8 @@ var App = (function() {
             articles: null,
             lines: null,
             linkedArticles: null,
-            linkedLines: null
+            linkedLines: null,
+            searchResults: null
         },
 
         currentFeature: null,
@@ -138,17 +201,24 @@ var App = (function() {
             return url;
         },
 
-        searchByLatLng: function(lat,lng){
+        searchByLatLng: function(latLng){
 
             $("#map").css("cursor", "wait");
 
-            var zoom = App.map.getZoom() || 1;
-            var tolerance = 1 / zoom;
+            var tolerance = getSearchTolerance(latLng);
+
+            var centerPoint = L.Projection.Mercator.project(latLng);
+            var pointX = L.Projection.Mercator.project(new L.LatLng(latLng.lat ,latLng.lng + tolerance));
+            var pointY = L.Projection.Mercator.project(new L.LatLng(latLng.lat + tolerance,latLng.lng));
+
+            var radiusX = Math.abs(centerPoint.x - pointX.x);
+            var radiusY = Math.abs(centerPoint.y - pointY.y);
+
 
             var offset = "";
             var params = {
-                lat: lat,
-                lon: lng,
+                lat: latLng.lat,
+                lon: latLng.lng,
                 tolerance: tolerance,
                 attrs:"id,title,links_count",
                 order_by:"links_count",
@@ -156,37 +226,77 @@ var App = (function() {
                 limit:"30"
             };
 
-            $.get(this.getURL(offset,params),function(data){
+            $.getJSON(this.getURL(offset,params),function(data){
 
-                var resultsDiv = $("<div></div>");
-                resultsDiv.addClass("results");
-                if (data && data.features.length){
-                    var div, title, results;
+                App.layers.searchResults.clearLayers();
+                var circle = new L.Ellipse(
+                        latLng,
+                        radiusX,
+                        radiusY,
+                        {color:"red"}
+                    ).on("click",function(){
+                        App.map.openPopup(popup);
+                    });
+
+                App.layers.searchResults.addLayer(circle);
+
+                var container = $("<div></div>").addClass("results");
+                var resultsUl = $("<ul></ul>");
+
+                if (data && data.features && data.features.length){
+                    var li, title, results, leafletLayer;
                     for (var i = 0; i < data.features.length; i++){
+
+                        leafletLayer = L.GeoJSON.geometryToLayer(data.features[i].geometry,function (latlng){
+                                    return new L.CircleMarker(latlng, {
+                                        radius: 3,
+                                        fillColor: "gray",
+                                        color: "#000",
+                                        weight: 1,
+                                        opacity: 1,
+                                        fillOpacity: 0.8
+                                        })
+                                    }
+                                 );
+
                         title = data.features[i].properties.title;
 
                         result = title + " (" + data.features[i].properties.links_count + ")";
 
-                        div = $("<div></div>").append(result);
-                        div.click({"feature": data.features[i]},function(e){
-                            App.map.closePopup();
-                            App.clear();
-                            App.addArticle(e.data.feature);
-                            App.getLinkedArticles(e.data.feature.id);
-                        });
-                        resultsDiv.append(div);
+                        li = $("<li></li>")
+                            .append(result)
+                            .attr("data-value",result)
+                            .click({"feature": data.features[i]},function(e){
+                                App.map.closePopup();
+                                App.clear();
+                                App.addArticle(e.data.feature);
+                                App.getLinkedArticles(e.data.feature.id);
+                                })
+                            .mouseover({"layer": leafletLayer},function(e){
+                                e.data.layer.setStyle({fillColor: "yellow"});
+                                })
+                            .mouseout({"layer": leafletLayer},function(e){
+                                e.data.layer.setStyle({fillColor: "gray"});
+                                });
+
+                        resultsUl.append(li);
+
+                        App.layers.searchResults.addLayer(leafletLayer);
+
                     }
 
+                    container.append(resultsUl);
                 } else {
-                    resultsDiv.append("No articles found near this point");
+                    container.append("No articles found near this point");
                 }
 
                 var popup = new L.Popup();
-                popup.setLatLng(new L.LatLng(lat,lng));
+                popup.setLatLng(new L.LatLng(latLng.lat+tolerance,latLng.lng));
                 // We need the actual DOM object
-                popup.setContent(resultsDiv.get(0));
+                popup.setContent(container.get(0));
 
                 App.map.openPopup(popup);
+
                 $("#map").css("cursor", "default");
 
             });
@@ -219,11 +329,14 @@ var App = (function() {
         },
 
         clear: function(){
+
             App.layers.currentArticle.clearLayers();
             App.layers.articles.clearLayers();
             App.layers.lines.clearLayers();
             App.layers.linkedArticles.clearLayers();
             App.layers.linkedLines.clearLayers();
+
+            App.layers.searchResults.clearLayers();
 
             App.map.closePopup();
 
@@ -342,7 +455,16 @@ var App = (function() {
                 } else {
                     App.map.removeLayer(App.layers.linkedLines);
                 }
+            });
 
+            // UI widgets
+            $("#tolerance").slider({
+                min: -50,
+                max: 50,
+                value: 0,
+                slide: function(e,ui){
+                    App.settings.tolerance = ui.value;
+                }
             });
 
 
@@ -383,6 +505,8 @@ var App = (function() {
             this.layers.linkedLines = new L.MultiPolyline([]);
             this.map.addLayer(this.layers.linkedLines);
 
+            this.layers.searchResults = new L.LayerGroup([]);
+            this.map.addLayer(this.layers.searchResults);
 
             var articlesIcon = L.Icon.extend({
                 iconUrl: 'img/icon_wiki.png',
@@ -471,7 +595,7 @@ var App = (function() {
             var pointQuery = new L.Handler.CtrlClickQuery(this.map);
             pointQuery.enable()
 
-            this.map.setView(new L.LatLng(0, 0), 1);
+            this.map.setView(new L.LatLng(0, 0), 2);
 
         }
     }

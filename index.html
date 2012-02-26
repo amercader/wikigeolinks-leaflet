@@ -6,12 +6,14 @@
         <![endif]-->
 
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
         <link rel="stylesheet" href="css/bootstrap.css" />
         <link rel="stylesheet" href="css/bootstrap-responsive.css"  />
         <link rel="stylesheet" href="js/leaflet/dist/leaflet.css" />
         <!--[if lte IE 8]><link rel="stylesheet" href="js/leaflet/dist/leaflet.ie.css" /><![endif]-->
-
         <link rel="stylesheet" href="css/app.css" />
+
+        <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/ui-lightness/jquery-ui.css" />
     </head>
     <body>
         <div id="toolbar" class="navbar navbar-fixed-top">
@@ -52,6 +54,13 @@
                                         <input type="checkbox" id="show-linked-lines" checked />
                                         <label for="show-linked-lines">Show lines to linked articles</label>
                                     </li>
+                                    <li class="divider"></li>
+                                    <li>
+                                        <div id="tolerance-container">
+                                            <div>Search by point tolerance</div>
+                                            <div id="tolerance"></div>
+                                        </div>
+                                    </li>
                                 </ul>
                             </li>
                         </ul>
@@ -59,6 +68,8 @@
                 </div>
             </div>
         </div>
+
+
         <div id="map"></div>
         <div id="bing-attribution">
             <a target="_blank" href="http://www.bing.com/maps/"><img src="http://dev.virtualearth.net/Branding/logo_powered_by.png" alt="Bing Maps"/></a>
@@ -66,6 +77,8 @@
 
 
        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+
+       <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js"></script>
        <script src="js/bootstrap.js"></script>
 <!--        <script src="js/leaflet/dist/leaflet.js"></script>-->
 
