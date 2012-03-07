@@ -78,7 +78,7 @@ L.Ellipse = L.Circle.extend({
 var App = (function() {
 
     // conf options
-    var serviceURL = 'http://amercader.net/dev/wikigeolinks-service/articles';
+    var serviceURL = 'http://localhost:5000/articles';
     var proxyURL = '';
 
     var bingKey = "AjtIygmd5pYzN3AaY3l_wLlbM2rW5CxbFaLzjxksZptvovvMVAKFwmJ_NDSVcfQu";
