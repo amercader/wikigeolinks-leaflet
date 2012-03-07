@@ -79,10 +79,17 @@ var App = (function() {
 
     // conf options
     var serviceURL = 'http://localhost:5000/articles';
-    var proxyURL = '';
 
     var bingKey = "AjtIygmd5pYzN3AaY3l_wLlbM2rW5CxbFaLzjxksZptvovvMVAKFwmJ_NDSVcfQu";
 
+    // Can we use CORS on this browser?
+    var useCORS = false;
+    if (XMLHttpRequest){
+        var request = new XMLHttpRequest();
+        if (request.withCredentials !== undefined){
+            useCORS = true;
+        }
+    }
 
     var formatLink = function(string){
         return encodeURIComponent(string.replace(" ","_","g"));
@@ -195,8 +202,11 @@ var App = (function() {
             if (params)
                 url += '?' + $.param(params);
 
-            if (proxyURL)
-                url = proxyURL + escape(url);
+            if (!useCORS){
+                // We need to use JSONP
+                url += (url.indexOf("?") === -1) ? "?" : "&";
+                url += "callback=?"
+            }
 
             return url;
         },
