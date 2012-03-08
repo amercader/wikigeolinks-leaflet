@@ -90,6 +90,25 @@ var App = (function() {
             useCORS = true;
         }
     }
+    var getParameterByName = function (name) {
+
+        var match = RegExp('[?&]' + name + '=([^&]*)')
+                        .exec(window.location.search);
+
+        return match ?
+            decodeURIComponent(match[1].replace(/\+/g, ' '))
+            : null;
+    }
+
+    var onError = function(jqXHR, textStatus, errorThrown){
+        var msg;
+        if (errorThrown){
+           msg =  "The server returned an error: [" + jqXHR.status + "] " + errorThrown;
+        } else {
+           msg =  "Error contacting the remote server";
+        }
+        showMessage(msg,"error");
+    }
 
     var formatLink = function(string){
         return encodeURIComponent(string.replace(" ","_","g"));
@@ -140,7 +159,7 @@ var App = (function() {
             limit:"12"
         };
 
-        $.get(App.getURL(offset,params),function(data){
+        $.getJSON(App.getURL(offset,params),function(data){
             var items = [];
             for (var i = 0; i < data.features.length; i++){
                 title = data.features[i].properties.title;
@@ -161,7 +180,7 @@ var App = (function() {
                 });
             })
             that.show()
-        });
+        }).error(onError);
     }
 
     var showMessage = function(content,type){
@@ -320,7 +339,7 @@ var App = (function() {
 
                 $("#map").css("cursor", "default");
 
-            });
+            }).error(onError);
 
         },
 
@@ -345,7 +364,7 @@ var App = (function() {
                     showMessage("No data received","error");
                 }
 
-            });
+            }).error(onError);
 
         },
 
@@ -504,7 +523,18 @@ var App = (function() {
             // Leaflet setup
             this.setupMap();
 
-            this.getArticle('31862');
+            // Check query params
+            var a = getParameterByName("a");
+            if (a == "random"){
+                this.randomArticle();
+            } else if (a){
+                this.getArticle(a);
+            } else {
+                //temp
+                this.getArticle('31862');
+            }
+
+
 
        },
 
