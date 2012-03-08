@@ -164,6 +164,17 @@ var App = (function() {
         });
     }
 
+    var showMessage = function(content,type){
+        $(".message").remove();
+        var className = "message fade in alert";
+        if (type)
+            className += " alert-" + type;
+        var div = $("<div></div>").addClass(className).html(content);
+        div.append("<a class=\"close\" data-dismiss=\"alert\" href=\"#\">&times;</a>");
+        $("body").prepend(div);
+        div.css("left",$(document).width()/2 - div.width()/2);
+    }
+
     return {
 
         settings: {
@@ -324,14 +335,14 @@ var App = (function() {
                             // Keep looking for an article with links
                             App.randomArticle();
                         } else {
-                            alert('Sorry, no links for this article');
+                            showMessage("Sorry, no links for this article");
                         }
                     } else {
                         App.addArticle(data);
                         App.getLinkedArticles(id);
                     }
                 } else {
-                    alert('No data received');
+                    showMessage("No data received","error");
                 }
 
             });
@@ -366,7 +377,7 @@ var App = (function() {
 
             $.getJSON(this.getURL(offset),function(data){
                 if (!data || data.length == 0){
-                    alert("Sorry, no links for this article");
+                    showMessage("Sorry, no links for this article!");
                     return;
                 }
 
@@ -482,6 +493,9 @@ var App = (function() {
                 // Set map div height
                 var correction =  ($(window).width() >= 980) ? 40 : 50;
                 $("#map").height($(window).height() - correction); // minus the nav bar
+                var div = $(".message");
+                if (div)
+                    div.css("left",$(document).width()/2 - div.width()/2);
             };
 
             onResize();
@@ -489,7 +503,6 @@ var App = (function() {
 
             // Leaflet setup
             this.setupMap();
-
 
             this.getArticle('31862');
 
