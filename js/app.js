@@ -194,11 +194,22 @@ var App = (function() {
         div.css("left",$(document).width()/2 - div.width()/2);
     }
 
+    var readCookie = function(){
+        return document.cookie.indexOf("dont_show_about=true") != -1;
+    }
+
+    var writeCookie = function(clear){
+        var expires =new Date();
+        expires.setMonth( (clear) ? expires.getMonth() - 1 : expires.getMonth() + 1);
+        document.cookie = "dont_show_about=true;expires=" + expires.toUTCString();
+    }
+
     return {
 
         settings: {
             showPreviousArticles: true,
             showLinkedLines: true,
+            showAboutOnStartup: true,
             tolerance: 0
         },
 
@@ -469,14 +480,14 @@ var App = (function() {
                     {lookup:ajaxLookup}
                     );
 
+            // Toolbar buttons
             $("#bg-map").click(function(){ App.setMapBackground("map"); });
             $("#bg-sat").click(function(){ App.setMapBackground("sat"); });
-
 
             $("#clear").click(App.clear);
             $("#random").click(App.randomArticle);
 
-
+            // Config options
             $("#show-previous-articles").click(function(){
                 App.settings.showPreviousArticles = !App.settings.showPreviousArticles;
                 if (App.settings.showPreviousArticles){
@@ -497,7 +508,6 @@ var App = (function() {
                 }
             });
 
-            // UI widgets
             $("#tolerance").slider({
                 min: -50,
                 max: 50,
@@ -505,6 +515,25 @@ var App = (function() {
                 slide: function(e,ui){
                     App.settings.tolerance = ui.value;
                 }
+            });
+
+            // About dialog
+            this.settings.showAboutOnStartup = !readCookie()
+            $("#show-on-startup").attr("checked",!this.settings.showAboutOnStartup);
+            $("#show-on-startup").click(function(){
+                App.settings.showAboutOnStartup = !App.settings.showAboutOnStartup;
+                writeCookie(App.settings.showAboutOnStartup);
+            });
+
+            $("#about-close").click(function(){$("#about").modal("hide")});
+            $("#about a").each(function(){
+                var id = $(this).data("link");
+                if (id)
+                    $(this).click(function(){
+                        App.clear();
+                        App.getArticle(id);
+                        $("#about").modal("hide");
+                        });
             });
 
 
@@ -530,11 +559,9 @@ var App = (function() {
             } else if (a){
                 this.getArticle(a);
             } else {
-                //temp
-                this.getArticle('31862');
+                if (this.settings.showAboutOnStartup)
+                    $("#about").modal("show");
             }
-
-
 
        },
 

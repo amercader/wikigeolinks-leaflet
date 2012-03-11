@@ -4,7 +4,7 @@
         <!--[if lt IE 9]>
           <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
         <![endif]-->
-
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
         <link rel="stylesheet" href="css/bootstrap.css" />
@@ -41,7 +41,7 @@
                             <div id="search-results" class="results" style="display:none"></div>
                         </form>
                         <ul class="nav pull-right">
-                            <li><a href="#">About</a></li>
+                            <li><a data-toggle="modal" href="#about">About / Help</a></li>
                             <li class="divider-vertical"></li>
                             <li class="dropdown">
                                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Configuration <b class="caret"></b></a>
@@ -68,13 +68,99 @@
                 </div>
             </div>
         </div>
-<!--        <div id="messages"></div>-->
-<!--<div class="message alert fade in" style="top: 50px; ">Hola caracola</div>-->
+
         <div id="map"></div>
         <div id="bing-attribution">
             <a target="_blank" href="http://www.bing.com/maps/"><img src="http://dev.virtualearth.net/Branding/logo_powered_by.png" alt="Bing Maps"/></a>
         </div>
 
+        <div class="modal show fade" id="about">
+            <div class="modal-header">
+                <a class="close" data-dismiss="modal">&times;</a>
+                <h3>WikiGeoLinks</h3>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs">
+                    <li class="active"><a href="#help" data-toggle="tab">How it works</a></li>
+                    <li><a href="#issues" data-toggle="tab">Known issues</a></li>
+                    <li><a href="#about_" data-toggle="tab">About</a></li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane active" id="help">
+                        <p>Welcome!</p>
+                        <p>This site lets you explore how the georeferenced articles of the Wikipedia are connected.</p>
+                        <ol>
+                            <li>
+                                <p>Look for an article to start with: <em>Ctrl + click</em> on the map
+                                   to query for nearby articles or <em>search</em> for an article in
+                                   the top text box.</p>
+                                <p>Try for instance <a href="#" data-link="Pyongyang">Pyongyang</a>,
+                                   <a href="#" data-link="Victoria, British Columbia">Victoria, British Columbia</a> or
+                                   <a href="#" data-link="Unité d'Habitation">Unité d'Habitation</a>.</p>
+                                <p><em>Tip:</em> Not only places can be georeferenced, you can try
+                                   something like <a href="#" data-link="David Livingstone">David Livingstone</a>
+                                    or <a href="#" data-link="Mike the Tiger">Mike the Tiger</a>.</p>
+                            </li>
+                            <li>
+                                <p>Click on the linked articles to see their connections, or
+                                   the link in the popup to open the Wikipedia article.</p>
+                            </li>
+                        </ol>
+                        <p>Drag the map to pan, mouse wheel or double click to zoom.</p>
+                        <p>You can modify some options on the <em>Configuration</em> section.</p>
+                    </div>
+                    <div class="tab-pane" id="issues">
+                         <li><p>Internet Explorer (tested on version 8) may struggle to render articles with a lot of connections.
+                        Firefox and Chrome should behave fine.</p></li>
+                        <li><p>The underlying data is neither complete nor current. It contains
+                         roughly half of the Wikipedia georeferenced articles, and it was extracted
+                         on <strong>March 2010</strong>. The datasets may not reflect the current location
+                         of the articles, or even existing articles.</p>
+                        <p>One of my next priorities will be using a more current and accurate dataset.</p>
+                        </li>
+                        <li><p>Obviously, some articles are wrongly located, they just reflect the
+                         coordinates that the original Wikipedia editor entered.</p></li>
+                        <li><p>There are some articles, like <a href="#" data-link="Apollo 11">Apollo 11</a>
+                         or <a href="#" data-link="Olympus Mons">Olympus Mons</a>
+                        which have geographic coordinates, but are obviously not referred to the Earth.
+                        The original dataset provides no means of filtering this 'extraterrestrial' articles.</p></li>
+
+                    </div>
+                    <div class="tab-pane" id="about_">
+                    <a href="https://github.com/amercader/wikigeolinks-leaflet">
+                        <img style="position: absolute; top: 0; right: 0; border: 0;" src="https://a248.e.akamai.net/assets.github.com/img/71eeaab9d563c2b3c590319b398dd35683265e85/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677261795f3664366436642e706e67" alt="Fork me on GitHub"></a>
+
+                        <p>This is a new version of a web app I built <a href="http://amercader.net/dev/wikigeolinks-geoext/">a while ago</a>
+                           with similar functionality, but based on GeoExt.</p>
+
+                        <p>This one uses <a href="http://leaflet.cloudmade.com/">Leaflet</a> as mapping library and
+                           <a href="http://twitter.github.com/bootstrap/">Bootstrap</a> to make it look nice.</p>
+                        <p>The articles coordinates and links were extracted from <a href="http://dbpedia.org">DBPedia</a>
+                           (you can find it <a href="http://amercader.net/dev/wikipedia">here</a>).
+                           I loaded them into <a href="http://www.postgis.org">PostGIS</a>, and built a web service on top of it
+                           with <a href="http://mapfish.org">MapFish</a>.</p>
+                        <p>The sources for the service and this site are available on GitHub:</p>
+                        <ul>
+                            <li><a href="https://github.com/amercader/wikigeolinks">https://github.com/amercader/wikigeolinks</a></li>
+                            <li><a href="https://github.com/amercader/wikigeolinks-leaflet">https://github.com/amercader/wikigeolinks-leaflet</a></li>
+                        </ul>
+                        <p>I would love to hear your comments and feedback! Also feel free to add any issue you find on GitHub.</p>
+                        <p><strong>Adri&agrave; Mercader</strong> | <a href="http://amercader.net">http://amercader.net</a> | <a href="https://twitter.com/amercader">@amercader</a></p>
+
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <div id="show-on-startup-container" class="pull-left">
+                    <input type="checkbox" id="show-on-startup" />
+                    <label for="show-on-startup">Don't show on startup</label>
+                    <img src="img/icon_cookie_monster.png" alt="Cookies!" title="This will set a cookie on your browser" />
+                </div>
+                <a href="#" class="btn" id="about-close">Close</a>
+            </div>
+        </div>
 
        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
 

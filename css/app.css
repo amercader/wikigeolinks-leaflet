@@ -179,3 +179,14 @@ img {
         top: 50px;
     }
 }
+
+#show-on-startup-container label,
+#show-on-startup-container input,
+#show-on-startup-container img{
+    float:left;
+    margin-right: 5px !important;
+}
+
+.tab-pane{
+    padding: 0 10px;
+}
