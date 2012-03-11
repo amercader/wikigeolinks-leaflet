@@ -90,6 +90,25 @@ var App = (function() {
             useCORS = true;
         }
     }
+    var getParameterByName = function (name) {
+
+        var match = RegExp('[?&]' + name + '=([^&]*)')
+                        .exec(window.location.search);
+
+        return match ?
+            decodeURIComponent(match[1].replace(/\+/g, ' '))
+            : null;
+    }
+
+    var onError = function(jqXHR, textStatus, errorThrown){
+        var msg;
+        if (errorThrown){
+           msg =  "The server returned an error: [" + jqXHR.status + "] " + errorThrown;
+        } else {
+           msg =  "Error contacting the remote server";
+        }
+        showMessage(msg,"error");
+    }
 
     var formatLink = function(string){
         return encodeURIComponent(string.replace(" ","_","g"));
@@ -140,7 +159,7 @@ var App = (function() {
             limit:"12"
         };
 
-        $.get(App.getURL(offset,params),function(data){
+        $.getJSON(App.getURL(offset,params),function(data){
             var items = [];
             for (var i = 0; i < data.features.length; i++){
                 title = data.features[i].properties.title;
@@ -161,7 +180,28 @@ var App = (function() {
                 });
             })
             that.show()
-        });
+        }).error(onError);
+    }
+
+    var showMessage = function(content,type){
+        $(".message").remove();
+        var className = "message fade in alert";
+        if (type)
+            className += " alert-" + type;
+        var div = $("<div></div>").addClass(className).html(content);
+        div.append("<a class=\"close\" data-dismiss=\"alert\" href=\"#\">&times;</a>");
+        $("body").prepend(div);
+        div.css("left",$(document).width()/2 - div.width()/2);
+    }
+
+    var readCookie = function(){
+        return document.cookie.indexOf("dont_show_about=true") != -1;
+    }
+
+    var writeCookie = function(clear){
+        var expires =new Date();
+        expires.setMonth( (clear) ? expires.getMonth() - 1 : expires.getMonth() + 1);
+        document.cookie = "dont_show_about=true;expires=" + expires.toUTCString();
     }
 
     return {
@@ -169,6 +209,7 @@ var App = (function() {
         settings: {
             showPreviousArticles: true,
             showLinkedLines: true,
+            showAboutOnStartup: true,
             tolerance: 0
         },
 
@@ -309,7 +350,7 @@ var App = (function() {
 
                 $("#map").css("cursor", "default");
 
-            });
+            }).error(onError);
 
         },
 
@@ -324,17 +365,17 @@ var App = (function() {
                             // Keep looking for an article with links
                             App.randomArticle();
                         } else {
-                            alert('Sorry, no links for this article');
+                            showMessage("Sorry, no links for this article");
                         }
                     } else {
                         App.addArticle(data);
                         App.getLinkedArticles(id);
                     }
                 } else {
-                    alert('No data received');
+                    showMessage("No data received","error");
                 }
 
-            });
+            }).error(onError);
 
         },
 
@@ -366,7 +407,7 @@ var App = (function() {
 
             $.getJSON(this.getURL(offset),function(data){
                 if (!data || data.length == 0){
-                    alert("Sorry, no links for this article");
+                    showMessage("Sorry, no links for this article!");
                     return;
                 }
 
@@ -439,14 +480,14 @@ var App = (function() {
                     {lookup:ajaxLookup}
                     );
 
+            // Toolbar buttons
             $("#bg-map").click(function(){ App.setMapBackground("map"); });
             $("#bg-sat").click(function(){ App.setMapBackground("sat"); });
-
 
             $("#clear").click(App.clear);
             $("#random").click(App.randomArticle);
 
-
+            // Config options
             $("#show-previous-articles").click(function(){
                 App.settings.showPreviousArticles = !App.settings.showPreviousArticles;
                 if (App.settings.showPreviousArticles){
@@ -467,7 +508,6 @@ var App = (function() {
                 }
             });
 
-            // UI widgets
             $("#tolerance").slider({
                 min: -50,
                 max: 50,
@@ -477,11 +517,33 @@ var App = (function() {
                 }
             });
 
+            // About dialog
+            this.settings.showAboutOnStartup = !readCookie()
+            $("#show-on-startup").attr("checked",!this.settings.showAboutOnStartup);
+            $("#show-on-startup").click(function(){
+                App.settings.showAboutOnStartup = !App.settings.showAboutOnStartup;
+                writeCookie(App.settings.showAboutOnStartup);
+            });
+
+            $("#about-close").click(function(){$("#about").modal("hide")});
+            $("#about a").each(function(){
+                var id = $(this).data("link");
+                if (id)
+                    $(this).click(function(){
+                        App.clear();
+                        App.getArticle(id);
+                        $("#about").modal("hide");
+                        });
+            });
+
 
             var onResize = function(){
                 // Set map div height
                 var correction =  ($(window).width() >= 980) ? 40 : 50;
                 $("#map").height($(window).height() - correction); // minus the nav bar
+                var div = $(".message");
+                if (div)
+                    div.css("left",$(document).width()/2 - div.width()/2);
             };
 
             onResize();
@@ -490,8 +552,16 @@ var App = (function() {
             // Leaflet setup
             this.setupMap();
 
-
-            this.getArticle('31862');
+            // Check query params
+            var a = getParameterByName("a");
+            if (a == "random"){
+                this.randomArticle();
+            } else if (a){
+                this.getArticle(a);
+            } else {
+                if (this.settings.showAboutOnStartup)
+                    $("#about").modal("show");
+            }
 
        },
 

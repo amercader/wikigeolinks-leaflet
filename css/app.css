@@ -2,7 +2,6 @@ body{
     margin: 0px;
     padding: 0px;
     font-family: helvetica, arial, sans-serif;
-
 }
 
 /*
@@ -161,4 +160,33 @@ img {
 
 #tolerance-container > div{
     margin-bottom: 10px;
+}
+
+.message{
+    position: fixed;
+    top: 50px;
+    z-index: 3000;
+}
+
+@media (max-width:980px) {
+    .message{
+        top: 55px;
+    }
+}
+
+@media (min-width:980px) {
+    .message{
+        top: 50px;
+    }
+}
+
+#show-on-startup-container label,
+#show-on-startup-container input,
+#show-on-startup-container img{
+    float:left;
+    margin-right: 5px !important;
+}
+
+.tab-pane{
+    padding: 0 10px;
 }
