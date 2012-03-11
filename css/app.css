@@ -190,3 +190,8 @@ img {
 .tab-pane{
     padding: 0 10px;
 }
+
+#piwik_opt_out{
+    width: 500px;
+    height: 135px;
+}
