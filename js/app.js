@@ -108,6 +108,9 @@ var App = (function() {
            msg =  "Error contacting the remote server";
         }
         showMessage(msg,"error");
+
+        if ($("#map").css("cursor") == "wait")
+                $("#map").css("cursor", "default");
     }
 
     var formatLink = function(string){
@@ -417,6 +420,8 @@ var App = (function() {
         getLinkedArticles: function(id){
             var offset = id + '/linked';
 
+            $("#map").css("cursor", "wait");
+
             $.getJSON(this.getURL(offset),function(data){
                 if (!data || data.length == 0){
                     showMessage("Sorry, no links for this article!");
@@ -450,7 +455,10 @@ var App = (function() {
                 bounds.extend(new L.LatLng(App.currentFeature.geometry.coordinates[1],App.currentFeature.geometry.coordinates[0]));
 
                 App.map.fitBounds(bounds);
-            });
+
+                $("#map").css("cursor", "default");
+
+            }).error(onError);;
 
         },
 
