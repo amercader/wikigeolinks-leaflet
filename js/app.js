@@ -180,8 +180,13 @@ var App = (function() {
                     items.push(result);
                 }
                 if (!items.length) {
+                    showMessage("No results found");
                     return that.shown ? that.hide() : that
+                } else {
+                    if ($(".message").text().indexOf("No results found") != -1)
+                        $(".message").remove();
                 }
+
                 that.render(items.slice(0, that.options.items))
 
                 that.$menu.find("li").map(function(i,element){
